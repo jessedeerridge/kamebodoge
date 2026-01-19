@@ -5,32 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>かめのボドゲ</title>
 
-  <!-- ✅ Firebase (v9 compat) -->
+  <!-- ✅ Firebase (v9 compat) : Auth + Realtime Database だけ使う -->
   <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
   <style>
     :root{
-      --bg:#0b0d10;
-      --line:rgba(255,255,255,.08);
-      --text:#e9edf3;
-      --muted:rgba(233,237,243,.72);
-      --accent:#7dd3fc;
+      /* =========================
+         ✅ 白テーマ
+         ========================= */
+      --bg:#ffffff;
+      --line:rgba(0,0,0,.08);
+      --text:#111827;
+      --muted:rgba(17,24,39,.65);
+      --accent:#2563eb;
       --radius:18px;
-      --shadow:0 12px 30px rgba(0,0,0,.35);
-
-      /* ✅ 後で別々に変えられる「サイズ定義」 */
-      --imgBoxSize: 1fr;
-      --descBoxSize: 1fr;
-      --boxGap: 10px;
-
-      /* ✅ 右の説明枠を“縦長”にする */
-      --descAR: 1 / 1.28;
-
-      /* ✅ 画像枠を右へどれだけ重ねるか */
-      --imgOverlap: 50%;
+      --shadow:0 12px 30px rgba(0,0,0,.12);
     }
 
     *{box-sizing:border-box}
@@ -38,430 +29,901 @@
     body{
       margin:0;
       font-family: system-ui,-apple-system,Segoe UI,Roboto,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
-      background: radial-gradient(1200px 700px at 20% 0%, rgba(125,211,252,.14), transparent 60%),
-                  radial-gradient(900px 600px at 80% 10%, rgba(167,139,250,.12), transparent 55%),
-                  var(--bg);
+      background:
+        radial-gradient(1200px 700px at 20% 0%, rgba(37,99,235,.08), transparent 60%),
+        radial-gradient(900px 600px at 80% 10%, rgba(99,102,241,.06), transparent 55%),
+        var(--bg);
       color:var(--text);
     }
 
     header{
       position:sticky; top:0; z-index:20;
       backdrop-filter: blur(10px);
-      background: linear-gradient(to bottom, rgba(11,13,16,.92), rgba(11,13,16,.72));
+      background: linear-gradient(to bottom, rgba(255,255,255,.92), rgba(255,255,255,.72));
       border-bottom:1px solid var(--line);
     }
-    .wrap{max-width:1100px; margin:0 auto; padding:14px 16px;}
-    .topbar{display:flex; align-items:center; justify-content:space-between; gap:12px;}
+    .wrap{max-width:1100px; margin:0 auto; padding:5px 16px;}
+    .bar{
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+    }
     .brand{
       display:flex; align-items:center; gap:10px;
       font-weight:900; letter-spacing:.02em;
       font-size:18px;
-      user-select:none;
+      min-width:0;
     }
     .turtle{
       width:34px; height:34px; border-radius:12px;
-      background: linear-gradient(135deg, rgba(125,211,252,.35), rgba(167,139,250,.25));
-      border:1px solid rgba(255,255,255,.12);
+      background: linear-gradient(135deg, rgba(37,99,235,.18), rgba(99,102,241,.14));
+      border:1px solid rgba(0,0,0,.10);
       box-shadow: var(--shadow);
       display:grid; place-items:center;
+      user-select:none;
+      flex:0 0 auto;
     }
     .turtle span{font-size:18px; transform: translateY(-1px);}
 
-    .actions{display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-end;}
-    .topBtn{
-      appearance:none;
-      border:1px solid rgba(255,255,255,.14);
-      background: rgba(255,255,255,.06);
-      color: var(--text);
+    .authArea{
+      display:flex; align-items:center; gap:10px;
+      flex:0 0 auto;
+    }
+    .userPill{
+      display:flex; align-items:center; gap:10px;
       padding:8px 10px;
-      border-radius: 12px;
-      font-weight:800;
-      letter-spacing:.02em;
-      cursor:pointer;
-      box-shadow: 0 8px 20px rgba(0,0,0,.25);
-      transition: transform .08s ease, background .15s ease, border-color .15s ease;
-      white-space:nowrap;
-    }
-    .topBtn:hover{ background: rgba(255,255,255,.09); border-color: rgba(125,211,252,.35); }
-    .topBtn:active{ transform: translateY(1px); }
-    .topBtn.primary{
-      border-color: rgba(125,211,252,.45);
-      background: rgba(125,211,252,.14);
-    }
-    .badge{
-      font-size:12px;
-      color: rgba(233,237,243,.75);
-      padding:6px 10px;
+      border:1px solid rgba(0,0,0,.10);
+      background: rgba(255,255,255,.80);
       border-radius: 999px;
-      border: 1px solid rgba(255,255,255,.10);
-      background: rgba(255,255,255,.05);
-      max-width: 320px;
+      box-shadow: 0 10px 24px rgba(0,0,0,.10);
+      max-width: 58vw;
+    }
+    .userEmail{
+      font-size:12px;
+      color: rgba(17,24,39,.78);
       overflow:hidden;
       text-overflow:ellipsis;
       white-space:nowrap;
+      max-width: 34vw;
     }
 
+    .btn{
+      appearance:none;
+      border:1px solid rgba(0,0,0,.12);
+      background: rgba(255,255,255,.90);
+      color: var(--text);
+      padding:9px 12px;
+      border-radius: 12px;
+      font-weight:800;
+      cursor:pointer;
+      box-shadow: 0 10px 22px rgba(0,0,0,.10);
+      transition: transform .08s ease, background .12s ease, border-color .12s ease;
+      user-select:none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn:hover{ background: #fff; border-color: rgba(0,0,0,.18); }
+    .btn:active{ transform: translateY(1px); }
+    .btn.primary{
+      background: linear-gradient(135deg, rgba(37,99,235,.14), rgba(99,102,241,.12));
+      border-color: rgba(37,99,235,.25);
+    }
+    .btn.ghost{
+      background: transparent;
+      box-shadow: none;
+    }
+    .btn.small{ padding:7px 10px; border-radius: 10px; font-size:12px; }
+    .btn.danger{
+      background: rgba(185, 28, 28, .07);
+      border-color: rgba(185, 28, 28, .18);
+      color: #7f1d1d;
+    }
+
+    /* =========================
+       ✅ 列数固定
+       小さいとき2列 / 中くらい3列 / 大きいとき4列
+       ========================= */
     .grid{
       max-width:1100px;
       margin:0 auto;
-      padding:16px 16px 26px;
+      padding:16px 3px 10px;
       display:grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap:12px;
-      align-items:start;
+      align-items:stretch; /* ✅ 同じ行は自動で同じ高さ */
     }
-    @media (min-width: 860px){
+    @media (min-width: 700px){
+      .grid{ grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+    @media (min-width: 900px){
       .grid{ grid-template-columns: repeat(4, minmax(0, 1fr)); }
     }
 
-    /* ✅ 2枠を横並びにする土台（重ねるので position:relative） */
+    /* ✅ カード全体 */
     .slot{
       position:relative;
-      display:grid;
-      grid-template-columns: var(--imgBoxSize) var(--descBoxSize);
-      gap: var(--boxGap);
-      align-items:start;
-      background: transparent;
-      border:0;
-      border-radius:0;
-      box-shadow:none;
-      overflow: visible;
-      min-height:0;
-    }
-
-    .box{
-      background: linear-gradient(180deg, rgba(18,22,28,.95), rgba(15,19,24,.92));
+      background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.98));
       border:1px solid var(--line);
       border-radius: var(--radius);
       box-shadow: var(--shadow);
       overflow:hidden;
       min-width:0;
-      min-height:0;
-      position:relative;
+
+      /* ✅ 行内で高さを揃えるため */
+      height:100%;
+      display:flex;
+      flex-direction:column;
     }
 
-    .descBox{
-      aspect-ratio: var(--descAR);
-      padding:12px 12px 12px;
+    /* ==========================================================
+       ✅ secondframe（0.8サイズの黒枠） ※現在は非表示仕様
+       ========================================================== */
+    .secondframe{
+      position:absolute;
+      inset:0;
+      z-index:4;
+      pointer-events:auto;
+      display:grid;
+      place-items:center;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: pan-y; /* ✅ スクロール優先 */
+    }
+    .secondframe::before{
+      content:"";
+      width:100%;
+      height:100%;
+      transform: scale(.88);
+      border-radius: calc(var(--radius) * .9);
+      border: 0;
+      background: transparent;
+      box-shadow: none;
+      pointer-events:none;
+      opacity: 0;
+    }
+
+    .secondframeLabel{
+      position:absolute;
+      right:14px;
+      bottom:14px;
+      z-index:5;
+      font-size:11px;
+      font-weight:900;
+      letter-spacing:.08em;
+      color: rgba(17,24,39,.55);
+      background: rgba(255,255,255,.70);
+      border:1px solid rgba(0,0,0,.10);
+      border-radius:999px;
+      padding:5px 8px;
+      pointer-events:none;
+      user-select:none;
+      display:none;
+    }
+    .slot[data-hasprev="1"] .secondframeLabel{ display:block; }
+
+    /* ==========================================================
+       ✅ secondframe 内側に出すプレビュー
+       ========================================================== */
+    .sfOverlay{
+      position:absolute;
+      inset:0;
+      z-index:7;
+      display:none;
+      pointer-events:auto;
+      -webkit-tap-highlight-color: transparent;
+      background: transparent;
+    }
+    .sfOverlay.show{ display:block; }
+
+    .sfInner{
+      position:absolute;
+      left:50%;
+      top:50%;
+      width:100%;
+      height:100%;
+      transform: translate(-50%,-50%) scale(.88);
+      border-radius: calc(var(--radius) * .9);
+      overflow:hidden;
+      background: rgba(0,0,0,.06);
+      backdrop-filter: blur(2px);
+    }
+
+    .sfOverlay .sfImgLink{
+      position:absolute;
+      inset:0;
+      display:block;
+      text-decoration:none;
+      touch-action: manipulation;
+    }
+    .sfOverlay img{
+      width:100%;
+      height:100%;
+      object-fit: cover;
+      display:block;
+      user-select:none;
+      -webkit-user-drag:none;
+    }
+
+    /* ✅ 説明（sfHint/sfHintTap）は不要なのでCSSも消してOKだが、念のため非表示 */
+    .sfOverlay .sfHint,
+    .sfOverlay .sfHintTap{ display:none !important; }
+
+    .sfOverlay .sfClose{
+      position:absolute;
+      right:10px;
+      top:10px;
+      z-index:2;
+      width:38px;
+      height:38px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.20);
+      background: rgba(0,0,0,.25);
+      color:#fff;
+      font-weight:900;
+      cursor:pointer;
+      user-select:none;
+      touch-action: manipulation;
+    }
+    .sfOverlay .sfClose:active{ transform: translateY(1px); }
+
+    /* ==========================================================
+       ✅ 正方形やめて自然な高さ
+       ========================================================== */
+    .infoBox{
+      width:100%;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      padding:12px;
+      min-width:0;
+
+      flex:1 1 auto;
+      position:relative;
+      z-index:3;
+      pointer-events:none;
+    }
+
+    .topRow{
+      display:grid;
+      grid-template-columns: 2fr 3fr;
+      gap:10px;
+      align-items:start;
+      min-width:0;
+    }
+
+    .imgCol{ min-width:0; }
+    .imgBase{
+      width:100%;
+      border-radius:14px;
+      background: transparent;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      min-height:72px;
+    }
+    .imgBase .previewImg{
+      width:100%;
+      height:auto;
+      max-width:100%;
+      display:block;
+      pointer-events:none;
+      user-select:none;
+      background: transparent;
+    }
+    .imgBase .empty{
+      color: rgba(17,24,39,.40);
+      font-weight:900;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+      font-size:12px;
+      user-select:none;
+      padding:14px 0;
+    }
+
+    .metaCol{
+      min-width:0;
       display:flex;
       flex-direction:column;
       gap:8px;
-      z-index:1;
     }
 
-    .gameLink{
+    .gameTitle{
       color:var(--text);
-      text-decoration:none;
       font-weight:900;
       font-size:15px;
-      line-height:1.2;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      white-space:nowrap;
-      min-width:0;
+      line-height:1.25;
+      white-space:normal;
+      overflow:visible;
+      text-overflow:clip;
+      overflow-wrap:anywhere;
+      word-break: break-word;
       display:block;
     }
-    .gameLink:hover{color: var(--accent);}
 
+    .metaRow{
+      display:flex;
+      flex-wrap:wrap;
+      gap:6px;
+      align-items:center;
+      margin-top:-2px;
+      min-width:0;
+    }
+    .metaPill{
+      font-size:12px;
+      font-weight:900;
+      color: rgba(17,24,39,.78);
+      user-select:none;
+      padding:4px 2px;
+      border-radius: 999px;
+      border:1px solid rgba(0,0,0,.10);
+      background: rgba(0,0,0,.03);
+      line-height:1;
+      white-space:nowrap;
+      flex:0 0 auto;
+    }
+
+    .tagRow{
+      display:flex;
+      flex-wrap:wrap;
+      gap:4px;
+      align-items:center;
+      margin-top:-2px;
+    }
+    .tagChip{
+      font-size:11px;
+      font-weight:900;
+      padding:3px 7px;
+      border-radius: 999px;
+      border:1px solid rgba(37,99,235,.18);
+      background: rgba(37,99,235,.10);
+      color: rgba(17,24,39,.90);
+      line-height:1.1;
+      white-space:nowrap;
+    }
+
+    .descBox{
+      padding:10px 12px;
+      border-radius: 14px;
+      background: rgba(0,0,0,.01);
+      border: 1px solid rgba(0,0,0,.06);
+      min-width:0;
+    }
     .desc{
       margin:0;
       color: var(--muted);
       line-height:1.45;
       font-size:13px;
-      overflow:hidden;
-      display:-webkit-box;
-      -webkit-line-clamp: 12;
-      -webkit-box-orient: vertical;
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-wrap:anywhere;
     }
 
-    .imgBox{
-      aspect-ratio: 1 / 1;
-      z-index:3;
-      transform: translateX(var(--imgOverlap));
-      background: transparent !important;
-      border: 0 !important;
-      border-radius: 0 !important;
-      box-shadow: none !important;
-      overflow: visible !important;
-      padding: 0;
-    }
-    .imgBox .previewImg{
-      position:absolute; inset:0;
-      width:100%;
-      height:100%;
-      object-fit: contain;
-      object-position: center;
-      display:block;
-      pointer-events:none;
-      user-select:none;
-    }
-    .imgBox .empty{
-      position:absolute; inset:0;
-      display:grid; place-items:center;
-      color: rgba(233,237,243,.35);
-      font-weight:800;
-      letter-spacing:.08em;
-      text-transform:uppercase;
+    .cardEditBtn{
+      position:absolute;
+      right:10px;
+      bottom:10px;
+      z-index:6;
+      border:1px solid rgba(0,0,0,.12);
+      background: rgba(255,255,255,.92);
+      color: rgba(17,24,39,.92);
+      font-weight:900;
       font-size:12px;
+      padding:7px 10px;
+      border-radius: 12px;
+      cursor:pointer;
+      box-shadow: 0 10px 22px rgba(0,0,0,.10);
       user-select:none;
-      border: 1px dashed rgba(255,255,255,.14);
-      border-radius: 14px;
-      backdrop-filter: blur(2px);
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    .cardEditBtn:hover{
+      border-color: rgba(37,99,235,.28);
+      background: rgba(37,99,235,.10);
+    }
+    .cardEditBtn:active{ transform: translateY(1px); }
+
+    .grid.reorder .slot[data-my="1"]{ cursor: grab; }
+    .grid.reorder .slot[data-my="1"]:active{ cursor: grabbing; }
+    .grid.reorder .slot[data-my="1"]{
+      outline: 2px dashed rgba(37,99,235,.25);
+      outline-offset: 6px;
+      border-radius: 18px;
+    }
+    .grid.reorder .slot.dragging{
+      opacity:.55;
+      outline-color: rgba(37,99,235,.55);
     }
 
+    .dropHint{
+      position: fixed;
+      left: 50%;
+      bottom: 14px;
+      transform: translateX(-50%);
+      z-index: 998;
+      padding: 9px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(0,0,0,.12);
+      background: rgba(255,255,255,.88);
+      box-shadow: 0 18px 50px rgba(0,0,0,.14);
+      font-size:12px;
+      font-weight:900;
+      color: rgba(17,24,39,.85);
+      display:none;
+      user-select:none;
+      white-space:nowrap;
+    }
+    .dropHint.show{ display:block; }
+
+    /* ✅ footnoteは残すが「タップで移動」説明は削除 */
     .footnote{
       max-width:1100px;
       margin:0 auto;
       padding:0 16px 22px;
-      color: rgba(233,237,243,.55);
+      color: rgba(17,24,39,.55);
       font-size:12px;
       line-height:1.6;
     }
     .footnote code{
-      background: rgba(255,255,255,.06);
-      border:1px solid rgba(255,255,255,.10);
+      background: rgba(0,0,0,.04);
+      border:1px solid rgba(0,0,0,.08);
       padding:2px 6px;
       border-radius:8px;
     }
 
-    @media (max-width: 520px){
-      .slot{ grid-template-columns: 1fr; gap: 10px; }
-      .imgBox{ transform:none; z-index:1; }
-      .descBox{ z-index:1; }
+    /* ====== Admin panel ====== */
+    .admin{
+      max-width:1100px;
+      margin:0 auto;
+      padding:0 16px 18px;
+    }
+    .adminCard{
+      border:1px solid rgba(0,0,0,.10);
+      background: rgba(255,255,255,.80);
+      border-radius: 18px;
+      box-shadow: 0 14px 34px rgba(0,0,0,.10);
+      overflow:hidden;
+    }
+    .adminHead{
+      padding:12px 14px;
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      border-bottom:1px solid rgba(0,0,0,.08);
+    }
+    .adminTitle{
+      font-weight:900;
+      letter-spacing:.02em;
+      font-size:14px;
+    }
+    .adminBody{
+      padding:12px 14px 14px;
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:10px;
+    }
+    @media (min-width: 860px){
+      .adminBody{
+        grid-template-columns: 1.1fr 1.1fr 1.1fr 1.2fr;
+      }
+      .adminBody .wide{ grid-column: 1 / -1; }
     }
 
-    /* ---------- modal ---------- */
-    .overlay{
-      position:fixed; inset:0;
-      background: rgba(0,0,0,.55);
+    .field{
+      display:flex; flex-direction:column; gap:6px;
+      min-width:0;
+    }
+    .label{
+      font-size:12px;
+      color: rgba(17,24,39,.70);
+      font-weight:800;
+      letter-spacing:.02em;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .label .miniRight{
+      font-size:11px;
+      font-weight:900;
+      opacity:.7;
+      display:flex;
+      align-items:center;
+      gap:8px;
+      white-space:nowrap;
+    }
+    .input, .textarea{
+      width:100%;
+      border:1px solid rgba(0,0,0,.12);
+      background: rgba(255,255,255,.92);
+      color: var(--text);
+      border-radius: 12px;
+      padding:10px 10px;
+      outline:none;
+    }
+    .input:focus, .textarea:focus{
+      border-color: rgba(37,99,235,.35);
+      box-shadow: 0 0 0 3px rgba(37,99,235,.12);
+    }
+    .textarea{
+      min-height: 78px;
+      resize: vertical;
+      line-height:1.45;
+    }
+    .hint{
+      font-size:11px;
+      color: rgba(17,24,39,.55);
+      line-height:1.45;
+    }
+    .rowActions{
+      display:flex; gap:10px; align-items:center; justify-content:flex-end;
+      padding-top: 6px;
+      flex-wrap: wrap;
+    }
+    .status{
+      font-size:12px;
+      color: rgba(17,24,39,.65);
+      min-height: 16px;
+    }
+    .status.err{ color: #b91c1c; }
+    .status.ok{ color: #047857; }
+
+    .stepper{
+      display:flex; align-items:center; gap:8px;
+      border:1px solid rgba(0,0,0,.12);
+      background: rgba(255,255,255,.92);
+      border-radius: 12px;
+      padding:8px 8px;
+      min-height: 40px;
+    }
+    .stepVal{
+      flex:1 1 auto;
+      font-weight:900;
+      color: rgba(17,24,39,.92);
+      font-size:13px;
+      letter-spacing:.02em;
+      user-select:none;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .stepBtns{
+      display:flex; gap:6px; flex:0 0 auto;
+    }
+    .stepBtn{
+      width:34px; height:30px;
+      border-radius: 10px;
+      border:1px solid rgba(0,0,0,.12);
+      background: rgba(0,0,0,.03);
+      color: rgba(17,24,39,.92);
+      cursor:pointer;
+      font-weight:900;
+      line-height:1;
+      user-select:none;
+      touch-action: manipulation;
+    }
+    .stepBtn:hover{ background: rgba(0,0,0,.05); border-color: rgba(0,0,0,.18); }
+    .stepBtn:active{ transform: translateY(1px); }
+
+    .tagInputRow{
+      display:flex; gap:8px; align-items:center;
+      flex-wrap:wrap;
+    }
+    .tagInputRow .input{ flex:1 1 260px; }
+    .tagPills{
+      display:flex;
+      flex-wrap:wrap;
+      gap:4px;
+      align-items:center;
+      padding:6px 0 0;
+      min-height: 22px;
+    }
+    .tagPickChip{
+      font-size:11px;
+      font-weight:900;
+      padding:3px 7px;
+      border-radius: 999px;
+      border:1px solid rgba(0,0,0,.10);
+      background: rgba(0,0,0,.03);
+      color: rgba(17,24,39,.90);
+      cursor:pointer;
+      user-select:none;
+      line-height:1.1;
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      white-space:nowrap;
+      touch-action: manipulation;
+    }
+    .tagPickChip:hover{ background: rgba(37,99,235,.10); border-color: rgba(37,99,235,.22); }
+    .tagPickChip.on{
+      background: rgba(37,99,235,.14);
+      border-color: rgba(37,99,235,.28);
+    }
+    .tagPickChip.dragging{
+      opacity:.55;
+      outline: 2px dashed rgba(37,99,235,.35);
+      outline-offset: 3px;
+    }
+    .tagPickChip .x{ opacity:.85; font-weight:900; }
+    .tagPickChip .del{
+      opacity:.9;
+      font-weight:900;
+      color:#b91c1c;
+    }
+
+    .modalOverlay{
+      position: fixed;
+      inset:0;
+      background: rgba(0,0,0,.42);
       display:none;
       align-items:center;
       justify-content:center;
-      padding:16px;
-      z-index:999;
+      padding: 18px;
+      z-index: 999;
     }
-    .overlay.show{display:flex;}
+    .modalOverlay.show{ display:flex; }
     .modal{
-      width:min(560px, 100%);
+      width: min(520px, 100%);
       border-radius: 18px;
-      background: linear-gradient(180deg, rgba(18,22,28,.98), rgba(12,14,18,.98));
-      border:1px solid rgba(255,255,255,.12);
-      box-shadow: 0 30px 80px rgba(0,0,0,.45);
+      border: 1px solid rgba(0,0,0,.12);
+      background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.98));
+      box-shadow: 0 26px 70px rgba(0,0,0,.18);
       overflow:hidden;
     }
     .modalHead{
-      display:flex; align-items:center; justify-content:space-between;
-      padding:12px 14px;
-      border-bottom:1px solid rgba(255,255,255,.08);
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(0,0,0,.08);
     }
-    .modalTitle{font-weight:900; letter-spacing:.02em;}
-    .iconBtn{
-      border:1px solid rgba(255,255,255,.14);
-      background: rgba(255,255,255,.06);
-      color: var(--text);
-      border-radius: 12px;
-      padding:6px 10px;
-      cursor:pointer;
+    .tabs{ display:flex; gap:8px; align-items:center; }
+    .tab{
+      border:1px solid rgba(0,0,0,.12);
+      background: rgba(0,0,0,.03);
+      color: rgba(17,24,39,.78);
+      padding:8px 10px;
+      border-radius: 999px;
       font-weight:900;
+      cursor:pointer;
+      user-select:none;
+      font-size:12px;
+      touch-action: manipulation;
     }
-    .modalBody{padding:14px;}
-    .row{display:grid; gap:10px;}
-    .field{
-      display:grid;
-      gap:6px;
-    }
-    label{font-size:12px; color: rgba(233,237,243,.75); font-weight:800;}
-    input, textarea{
-      width:100%;
-      padding:10px 10px;
-      border-radius: 12px;
-      border:1px solid rgba(255,255,255,.12);
-      background: rgba(255,255,255,.06);
+    .tab.active{
+      background: rgba(37,99,235,.14);
+      border-color: rgba(37,99,235,.28);
       color: var(--text);
-      outline:none;
-      font-size:14px;
     }
-    textarea{min-height:110px; resize:vertical;}
-    input:focus, textarea:focus{ border-color: rgba(125,211,252,.45); }
+    .closeX{
+      border:0;
+      background: transparent;
+      color: rgba(17,24,39,.72);
+      font-size:18px;
+      cursor:pointer;
+      padding: 6px 10px;
+      border-radius: 10px;
+      touch-action: manipulation;
+    }
+    .closeX:hover{ background: rgba(0,0,0,.04); }
 
-    .help{
-      font-size:12px;
-      color: rgba(233,237,243,.65);
-      line-height:1.5;
-      margin: 4px 0 0;
-    }
-    .err{
-      margin-top:10px;
-      background: rgba(239,68,68,.12);
-      border: 1px solid rgba(239,68,68,.28);
-      color: rgba(255,255,255,.92);
-      padding:10px 10px;
-      border-radius: 14px;
-      font-size:12px;
-      line-height:1.45;
-      display:none;
-      white-space:pre-wrap;
-    }
-    .err.show{display:block;}
-    .ok{
-      margin-top:10px;
-      background: rgba(34,197,94,.12);
-      border: 1px solid rgba(34,197,94,.28);
-      color: rgba(255,255,255,.92);
-      padding:10px 10px;
-      border-radius: 14px;
-      font-size:12px;
-      line-height:1.45;
-      display:none;
-      white-space:pre-wrap;
-    }
-    .ok.show{display:block;}
-
-    .modalFoot{
-      padding:12px 14px;
-      border-top:1px solid rgba(255,255,255,.08);
+    .modalBody{
+      padding: 14px;
       display:flex;
-      align-items:center;
-      justify-content:flex-end;
+      flex-direction:column;
       gap:10px;
-      flex-wrap:wrap;
     }
-    .mutedBtn{ opacity:.9; }
-    .wideBtns{display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end;}
-    .previewLine{
-      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
-      margin-top:8px;
+    .modalErr{
+      font-size:12px;
+      color:#b91c1c;
+      line-height:1.5;
+      display:none;
+      white-space:pre-wrap;
     }
-    .miniPreview{
-      width:64px; height:64px;
-      border-radius: 14px;
-      border:1px solid rgba(255,255,255,.12);
-      background: rgba(255,255,255,.05);
-      overflow:hidden;
-      display:grid; place-items:center;
+    .modalErr.show{ display:block; }
+
+    .hr{
+      height:1px; background: rgba(0,0,0,.08);
+      margin: 4px 0;
     }
-    .miniPreview img{width:100%; height:100%; object-fit:contain;}
-    .tiny{font-size:11px; color: rgba(233,237,243,.65);}
+    .mutedNote{
+      font-size:12px;
+      color: rgba(17,24,39,.62);
+      line-height:1.55;
+    }
+
+    .hidden{ display:none !important; }
   </style>
 </head>
 
 <body>
   <header>
     <div class="wrap">
-      <div class="topbar">
+      <div class="bar">
         <div class="brand">
           <div class="turtle" aria-hidden="true"><span>🐢</span></div>
           <div>かめのボドゲ</div>
         </div>
 
-        <div class="actions">
-          <span class="badge" id="userBadge" style="display:none;"></span>
-          <button class="topBtn" id="btnLogin">ログイン</button>
-          <button class="topBtn primary" id="btnAdd" style="display:none;">＋ ゲーム追加</button>
-          <button class="topBtn" id="btnLogout" style="display:none;">ログアウト</button>
+        <div class="authArea" aria-label="auth-area">
+          <button class="btn primary" id="btnLogin">ログイン</button>
+
+          <div class="userPill hidden" id="userPill">
+            <div class="userEmail" id="userEmail">-</div>
+            <button class="btn ghost small" id="btnLogout">ログアウト</button>
+          </div>
         </div>
       </div>
     </div>
   </header>
 
   <main>
-    <section class="grid" id="grid"></section>
+    <section class="admin hidden" id="adminPanel">
+      <div class="adminCard">
+        <div class="adminHead">
+          <div class="adminTitle" id="adminTitleText">ゲーム追加（ログイン中のみ）</div>
+          <div class="status" id="adminStatus"></div>
+        </div>
 
-    <div class="footnote" id="footnote">
-      ※ 左の画像枠は「背景透過PNG」を置く前提で、枠/背景/影を消しています。<br/>
-      ※ 新規追加は右上 <code>ログイン</code> → <code>＋ゲーム追加</code> から。<br/>
-      ※ <code>file://</code> 直開きは Firebase Auth の仕様でログイン不可（オリジンnull）です。HTTP(S)で開いてください。
+        <div class="adminBody">
+          <div class="field">
+            <div class="label">名前</div>
+            <input class="input" id="fName" placeholder="例：新しいボドゲ" />
+          </div>
+
+          <div class="field">
+            <div class="label">リンク</div>
+            <input class="input" id="fUrl" placeholder="https://example.com/" />
+            <div class="hint">※ http(s) のURL推奨</div>
+          </div>
+
+          <div class="field">
+            <div class="label">画像リンク（任意）</div>
+            <input class="input" id="fImgUrl" placeholder="https://.../image.png" />
+            <div class="hint">透過PNGなどのURL推奨（編集時：空なら「画像は変更しない」）</div>
+          </div>
+
+          <div class="field">
+            <div class="label">画像ファイル（任意 / DB保存）</div>
+            <input class="input" id="fImgFile" type="file" accept="image/*" />
+            <div class="hint">※ Storage不使用。選ぶと dataURL でDBに保存（大きい画像は非推奨）</div>
+          </div>
+
+          <div class="field">
+            <div class="label">プレビュー用画像リンク（任意）</div>
+            <input class="input" id="fPrevImgUrl" placeholder="https://.../preview.jpg" />
+            <div class="hint">secondframeで枠内表示できます。</div>
+          </div>
+
+          <div class="field">
+            <div class="label">プレビュー用画像ファイル（任意 / DB保存）</div>
+            <input class="input" id="fPrevImgFile" type="file" accept="image/*" />
+            <div class="hint">※ Storage不使用。選ぶと dataURL でDBに保存（大きい画像は非推奨）</div>
+          </div>
+
+          <div class="field">
+            <div class="label">人数（👤 min~max）</div>
+            <div class="stepper" aria-label="players-stepper">
+              <div class="stepVal" id="fPlayersLabel">👤3~6</div>
+              <div class="stepBtns">
+                <button class="stepBtn" id="plMinDown" title="min ▼">▼</button>
+                <button class="stepBtn" id="plMinUp"   title="min ▲">▲</button>
+              </div>
+              <div style="width:1px;height:20px;background:rgba(0,0,0,.12);"></div>
+              <div class="stepBtns">
+                <button class="stepBtn" id="plMaxDown" title="max ▼">▼</button>
+                <button class="stepBtn" id="plMaxUp"   title="max ▲">▲</button>
+              </div>
+            </div>
+            <div class="hint">左が min、右が max。min ≤ max で自動調整。</div>
+          </div>
+
+          <div class="field">
+            <div class="label">時間（⌚ 分）</div>
+            <div class="stepper" aria-label="time-stepper">
+              <div class="stepVal" id="fTimeLabel">⌚20m</div>
+              <div class="stepBtns">
+                <button class="stepBtn" id="tmDown" title="▼">▼</button>
+                <button class="stepBtn" id="tmUp"   title="▲">▲</button>
+              </div>
+            </div>
+            <div class="hint">5分刻み（最小5 / 最大240）</div>
+          </div>
+
+          <div class="field wide">
+            <div class="label">
+              <span>タグ（新規追加OK / 登録後も流用）</span>
+              <span class="miniRight">
+                <span class="hint" style="margin:0;">※選択中タグはドラッグで並べ替え可</span>
+              </span>
+            </div>
+
+            <div class="tagInputRow">
+              <input class="input" id="fTagInput" placeholder="タグ追加（例：協力 / 正体隠匿 / 推理）" />
+              <button class="btn small" id="btnTagAdd">追加</button>
+            </div>
+
+            <div class="hint">
+              ・「追加」を押すと <b>tags(タグ辞書)</b> に保存され、以降も候補に出ます。<br/>
+              ・ゲームを保存した時も、選択タグは自動で辞書に登録されます。<br/>
+              ・既存タグの右側の <b>🗑</b> を押すと、辞書から削除できます（ログイン必須）。
+            </div>
+
+            <div class="hint" style="margin-top:6px;">選択中タグ（ドラッグで順番変更 / クリックで解除）</div>
+            <div class="tagPills" id="selectedTags"></div>
+
+            <div class="hint" style="margin-top:6px;">既存タグ（DB保存）</div>
+            <div class="tagPills" id="tagSuggestions"></div>
+          </div>
+
+          <div class="field wide">
+            <div class="label">説明</div>
+            <textarea class="textarea" id="fDesc" placeholder="ゲームの説明..."></textarea>
+          </div>
+
+          <div class="field">
+            <div class="label">操作</div>
+            <div class="rowActions">
+              <button class="btn" id="btnClear">クリア</button>
+              <button class="btn" id="btnCancelEdit" style="display:none;">編集キャンセル</button>
+              <button class="btn primary" id="btnAdd">追加</button>
+            </div>
+            <div class="hint" id="adminHint">追加するとRealtime DBへ書き込み→一覧に即反映</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid reorder" id="grid"></section>
+
+    <div class="dropHint" id="dropHint">ドラッグで並べ替え中…</div>
+
+    <div class="footnote">
+      ※ secondframeでプレビュー表示（枠の内側のみ）。<br/>
+      ※ プレビュー外クリック/スクロールで閉じます。<br/>
+      ※ プレビュー表示中は並べ替えできません。
     </div>
   </main>
 
-  <!-- ===== Auth Modal ===== -->
-  <div class="overlay" id="authOverlay" aria-hidden="true">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+  <!-- ===== Modal: Auth ===== -->
+  <div class="modalOverlay" id="authModalOverlay" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="auth-modal">
       <div class="modalHead">
-        <div class="modalTitle" id="authTitle">ログイン（メール/パスワード）</div>
-        <button class="iconBtn" id="authClose">×</button>
+        <div class="tabs">
+          <div class="tab active" id="tabLogin">ログイン</div>
+          <div class="tab" id="tabSignup">新規登録</div>
+        </div>
+        <button class="closeX" id="btnCloseModal" aria-label="close">×</button>
       </div>
 
       <div class="modalBody">
-        <div class="row">
-          <div class="field">
-            <label for="authEmail">メールアドレス</label>
-            <input id="authEmail" type="email" autocomplete="email" placeholder="example@email.com">
-          </div>
-          <div class="field">
-            <label for="authPass">パスワード</label>
-            <input id="authPass" type="password" autocomplete="current-password" placeholder="••••••••">
-            <div class="help">※ まず「ログイン」を試して、初めてなら「新規登録」を押してください。</div>
-          </div>
-
-          <div class="err" id="authErr"></div>
-          <div class="ok" id="authOk"></div>
+        <div class="mutedNote">
+          Firebaseメール/パスワード方式です。ログイン成功後、上の「ゲーム追加」が表示されます。
         </div>
-      </div>
 
-      <div class="modalFoot">
-        <button class="topBtn mutedBtn" id="btnSignup">新規登録</button>
-        <button class="topBtn primary" id="btnDoLogin">ログイン</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ===== Add Game Modal ===== -->
-  <div class="overlay" id="addOverlay" aria-hidden="true">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="addTitle">
-      <div class="modalHead">
-        <div class="modalTitle" id="addTitle">ゲーム追加</div>
-        <button class="iconBtn" id="addClose">×</button>
-      </div>
-
-      <div class="modalBody">
-        <div class="row">
-          <div class="field">
-            <label for="gName">題名</label>
-            <input id="gName" type="text" placeholder="例：新しいゲーム">
+        <div class="field">
+          <div class="label">
+            <span>メールアドレス</span>
+            <span class="miniRight"><span class="hint" style="margin:0;">入力は保存されます</span></span>
           </div>
-          <div class="field">
-            <label for="gDesc">説明</label>
-            <textarea id="gDesc" placeholder="短い紹介文"></textarea>
-          </div>
-          <div class="field">
-            <label for="gUrl">リンク</label>
-            <input id="gUrl" type="url" placeholder="https://example.com/">
-            <div class="help">※ http(s) が無い場合は自動で https:// を付けます。</div>
-          </div>
-
-          <div class="field">
-            <label for="gImgFile">画像（ファイル）</label>
-            <input id="gImgFile" type="file" accept="image/*">
-            <div class="help">※ 選んだ画像は Firebase Storage に保存します（ログイン必須）。</div>
-
-            <div class="previewLine">
-              <div class="miniPreview" id="miniPreview"><span class="tiny">NO IMG</span></div>
-              <div class="tiny" id="miniInfo"></div>
-            </div>
-          </div>
-
-          <div class="field">
-            <label for="gImgUrl">画像（URLでも可・任意）</label>
-            <input id="gImgUrl" type="url" placeholder="https://...png">
-            <div class="help">※ ファイルを選んだ場合はファイルが優先されます。</div>
-          </div>
-
-          <div class="err" id="addErr"></div>
-          <div class="ok" id="addOk"></div>
+          <input class="input" id="authEmail" type="email" autocomplete="email" placeholder="name@example.com" />
         </div>
-      </div>
 
-      <div class="modalFoot">
-        <button class="topBtn" id="btnCancelAdd">キャンセル</button>
-        <button class="topBtn primary" id="btnSaveGame">保存</button>
+        <div class="field">
+          <div class="label">パスワード</div>
+          <input class="input" id="authPass" type="password" autocomplete="current-password" placeholder="6文字以上" />
+        </div>
+
+        <div class="modalErr" id="authErr"></div>
+
+        <div class="rowActions" style="justify-content:flex-end;">
+          <button class="btn" id="btnAuthDo">ログイン</button>
+        </div>
+
+        <div class="hr"></div>
+        <div class="mutedNote" id="authModeNote">
+          新規登録が必要なら「新規登録」タブへ。
+        </div>
       </div>
     </div>
   </div>
 
   <script>
     // =========================
-    // Firebase Config
+    // ✅ Firebase Config
     // =========================
     const firebaseConfig = {
       apiKey: "AIzaSyDUP1foVQnitM45do_UtYLkcc9gvgQC-xw",
@@ -475,99 +937,195 @@
     };
 
     // =========================
-    // UI Elements
+    // ✅ 初期ゲーム（旧分は消さない）
+    // =========================
+    const seedGames = [];
+    const TOTAL_SLOTS = 20;
+
+    // =========================
+    // ✅ localStorage keys
+    // =========================
+    const LS_AUTH_EMAIL   = "kame_bodoge_auth_email";
+    // ✅ 追加：ログイン/ログアウトで“枠順”が逆転しないように、最後のUIDと並び順をローカルにキャッシュ
+    const LS_LAST_UID     = "kame_bodoge_last_uid";
+    const LS_ORDER_CACHE  = "kame_bodoge_order_cache";
+
+    // =========================
+    // ✅ DOM
     // =========================
     const grid = document.getElementById("grid");
+    const dropHint = document.getElementById("dropHint");
 
     const btnLogin  = document.getElementById("btnLogin");
     const btnLogout = document.getElementById("btnLogout");
-    const btnAdd    = document.getElementById("btnAdd");
-    const userBadge = document.getElementById("userBadge");
+    const userPill  = document.getElementById("userPill");
+    const userEmail = document.getElementById("userEmail");
 
-    const authOverlay = document.getElementById("authOverlay");
-    const authClose = document.getElementById("authClose");
-    const btnDoLogin = document.getElementById("btnDoLogin");
-    const btnSignup = document.getElementById("btnSignup");
+    const adminPanel  = document.getElementById("adminPanel");
+    const adminTitleText = document.getElementById("adminTitleText");
+    const adminStatus = document.getElementById("adminStatus");
+    const adminHint = document.getElementById("adminHint");
+
+    const fName   = document.getElementById("fName");
+    const fUrl    = document.getElementById("fUrl");
+    const fDesc   = document.getElementById("fDesc");
+    const fImgUrl = document.getElementById("fImgUrl");
+    const fImgFile= document.getElementById("fImgFile");
+
+    const fPrevImgUrl  = document.getElementById("fPrevImgUrl");
+    const fPrevImgFile = document.getElementById("fPrevImgFile");
+
+    const btnAdd  = document.getElementById("btnAdd");
+    const btnClear= document.getElementById("btnClear");
+    const btnCancelEdit = document.getElementById("btnCancelEdit");
+
+    // players/time stepper
+    const fPlayersLabel = document.getElementById("fPlayersLabel");
+    const plMinDown = document.getElementById("plMinDown");
+    const plMinUp   = document.getElementById("plMinUp");
+    const plMaxDown = document.getElementById("plMaxDown");
+    const plMaxUp   = document.getElementById("plMaxUp");
+
+    const fTimeLabel = document.getElementById("fTimeLabel");
+    const tmDown = document.getElementById("tmDown");
+    const tmUp   = document.getElementById("tmUp");
+
+    // tags
+    const fTagInput = document.getElementById("fTagInput");
+    const btnTagAdd = document.getElementById("btnTagAdd");
+    const selectedTagsEl = document.getElementById("selectedTags");
+    const tagSuggestionsEl = document.getElementById("tagSuggestions");
+
+    // auth modal
+    const authModalOverlay = document.getElementById("authModalOverlay");
+    const tabLogin  = document.getElementById("tabLogin");
+    const tabSignup = document.getElementById("tabSignup");
+    const btnCloseModal = document.getElementById("btnCloseModal");
+    const btnAuthDo = document.getElementById("btnAuthDo");
     const authEmail = document.getElementById("authEmail");
     const authPass  = document.getElementById("authPass");
-    const authErr = document.getElementById("authErr");
-    const authOk  = document.getElementById("authOk");
+    const authErr   = document.getElementById("authErr");
+    const authModeNote = document.getElementById("authModeNote");
 
-    const addOverlay = document.getElementById("addOverlay");
-    const addClose = document.getElementById("addClose");
-    const btnCancelAdd = document.getElementById("btnCancelAdd");
-    const btnSaveGame = document.getElementById("btnSaveGame");
-    const gName = document.getElementById("gName");
-    const gDesc = document.getElementById("gDesc");
-    const gUrl  = document.getElementById("gUrl");
-    const gImgFile = document.getElementById("gImgFile");
-    const gImgUrl  = document.getElementById("gImgUrl");
-    const addErr = document.getElementById("addErr");
-    const addOk  = document.getElementById("addOk");
-    const miniPreview = document.getElementById("miniPreview");
-    const miniInfo = document.getElementById("miniInfo");
+    // =========================
+    // ✅ State
+    // =========================
+    let authMode = "login";
+    let currentUser = null;
 
-    function showOverlay(el){ el.classList.add("show"); el.setAttribute("aria-hidden","false"); }
-    function hideOverlay(el){ el.classList.remove("show"); el.setAttribute("aria-hidden","true"); }
-    function setErr(box, msg){ box.textContent = msg || ""; box.classList.toggle("show", !!msg); }
-    function setOk(box, msg){ box.textContent = msg || ""; box.classList.toggle("show", !!msg); }
+    let dbGames = [];
+    let firebaseReady = false;
+    let auth = null;
+    let db = null;
+    let gamesRef = null;
 
-    function isFileProtocol(){
-      return location.protocol === "file:";
+    // ✅ 並び替え
+    let orderRef = null;
+    let myOrderMap = {};
+    let orderUid = null;
+
+    // ✅ ローカルキャッシュ（ログアウト後も同じ並びを維持するため）
+    let cachedUid = "";
+    let cachedOrderMap = {};
+    try{
+      cachedUid = localStorage.getItem(LS_LAST_UID) || "";
+      const raw = localStorage.getItem(LS_ORDER_CACHE) || "{}";
+      cachedOrderMap = JSON.parse(raw);
+      if(!cachedOrderMap || typeof cachedOrderMap !== "object") cachedOrderMap = {};
+    }catch(_){
+      cachedUid = "";
+      cachedOrderMap = {};
+    }
+
+    // ✅ タグ辞書
+    let tagsRef = null;
+    let dbTags = [];
+    let dbTagsMap = {};
+    let deletingTagBusy = false;
+
+    // ✅ form state
+    let formMinPlayers = 3;
+    let formMaxPlayers = 6;
+    let formTimeMin = 20;
+    let formTags = [];
+
+    // ✅ 編集モード
+    let editingId = null;
+    let editingOriginal = null;
+
+    // ✅ プレビューで並べ替え
+    let draggingSlot = null;
+
+    // ✅ 選択中タグの並べ替え
+    let draggingTagEl = null;
+
+    // ✅ secondframe クリック vs スクロール判定用
+    const SF_CLICK = { active:false, moved:false, startX:0, startY:0, movedDist:0, downTime:0 };
+    const SF_MOVE_PX = 10;
+    const SF_TIME_MS = 450;
+
+    // ✅ タップ端末では「表示」と「遷移」を分離（2タップ方式）
+    const IS_COARSE = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+
+    // ✅ タップ直後の「ghost click」対策
+    let _suppressClickUntil = 0;
+    function suppressNextClick(ms=450){
+      _suppressClickUntil = Date.now() + ms;
+    }
+    function isSuppressedClick(){
+      return Date.now() < _suppressClickUntil;
+    }
+
+    function cacheOrderToLocal(uid, orderMap){
+      try{
+        if(uid) localStorage.setItem(LS_LAST_UID, uid);
+        localStorage.setItem(LS_ORDER_CACHE, JSON.stringify(orderMap || {}));
+      }catch(_){}
+      cachedUid = uid || cachedUid || "";
+      cachedOrderMap = (orderMap && typeof orderMap === "object") ? orderMap : (cachedOrderMap || {});
+    }
+
+    function getOrderContext(){
+      if(currentUser) return { uid: currentUser.uid, orderMap: myOrderMap || {} };
+      return { uid: cachedUid || "", orderMap: cachedOrderMap || {} };
     }
 
     // =========================
-    // Default (kept)
+    // ✅ UI helpers
     // =========================
-    const defaultGames = [
-      { name:"タイムボム",     url:"https://jessedeerridge.github.io/timebomb/",         desc:"爆発に気を付けながら、爆弾を解除しよう！", img:"" },
-      { name:"ボムバスターズ", url:"https://jessedeerridge.github.io/bombjessebusters/", desc:"協力して爆弾を解除しよう！",               img:"" },
-      { name:"ワーワーズ",     url:"https://jessedeerridge.github.io/werewords/",        desc:"協力して単語を当てろ！",                     img:"" },
-      { name:"チーズ泥棒",     url:"https://jessedeerridge.github.io/cheesetheft/",      desc:"3時に起きた時にはまだチーズはあったよ。チーズを食べた嘘つきは誰だ？", img:"" },
-      { name:"マイマジョ",     url:"https://jessedeerridge.github.io/mymajo/",           desc:"お寿司の定番ネタといえば？ マジョリティなら意見は一致するはず！ マイノリティは誰だ？", img:"" },
-      { name:"ザ・カカポ",     url:"https://jessedeerridge.github.io/kakapo/",           desc:"協力して鳥を捕獲！頭を使ってピースを上手く並べなければいけない！", img:"" },
-      { name:"白薔薇と刃",     url:"https://jessedeerridge.github.io/shirobara/",        desc:"白薔薇を守ろう！", img:"" },
-      { name:"シャドウ・レイダーズ", url:"https://jessedeerridge.github.io/shadowraiders/", desc:"平和のために戦うぞ！この世界は吾輩の物だ... 正義VS悪！でも、あなたは味方？", img:"" },
-      { name:"ITO",            url:"https://jessedeerridge.github.io/ito/",              desc:"無人島にもっていきたい物といえば。1（いらない物）←…→（すごくもっていきたい物）100！意思疎通できるかな？", img:"" },
-      { name:"HIDEOUT",        url:"https://jessedeerridge.github.io/hideout/",          desc:"爆弾に突入しないように、アジトに潜入しよう！", img:"" },
-    ];
-
-    // =========================
-    // Rendering
-    // =========================
-    const BASE_SLOTS = 20;
-    function slotHTML({name, desc, url, img} = {}, index){
-      const hasGame = !!url;
-
-      const imgBox = (hasGame && img)
-        ? `<div class="box imgBox" aria-hidden="true">
-             <img class="previewImg" src="${escapeAttr(img)}" alt="">
-           </div>`
-        : `<div class="box imgBox" aria-hidden="true">
-             <div class="empty">PNG HERE</div>
-           </div>`;
-
-      const title = hasGame
-        ? `<a class="gameLink" href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHTML(name)}</a>`
-        : `<span class="gameLink" style="opacity:.45; pointer-events:none;">（空き）</span>`;
-
-      const description = hasGame
-        ? `<p class="desc">${escapeHTML(desc || "")}</p>`
-        : `<p class="desc" style="opacity:.45;">ここは空枠です</p>`;
-
-      return `
-        <article class="slot" aria-label="slot-${index+1}">
-          ${imgBox}
-          <div class="box descBox">
-            ${title}
-            ${description}
-          </div>
-        </article>
-      `;
+    function showModal(open){
+      authModalOverlay.classList.toggle("show", !!open);
+      authModalOverlay.setAttribute("aria-hidden", open ? "false" : "true");
+      if(open){
+        authErr.classList.remove("show");
+        authErr.textContent = "";
+        try{
+          const cached = localStorage.getItem(LS_AUTH_EMAIL) || "";
+          if(cached && !authEmail.value) authEmail.value = cached;
+        }catch(_){}
+        setTimeout(() => authEmail.focus(), 50);
+      }
     }
 
-    // basic escaping
-    function escapeHTML(s){
+    function setAuthMode(mode){
+      authMode = mode;
+      tabLogin.classList.toggle("active", mode === "login");
+      tabSignup.classList.toggle("active", mode === "signup");
+      btnAuthDo.textContent = (mode === "login") ? "ログイン" : "新規登録";
+      authModeNote.textContent = (mode === "login")
+        ? "新規登録が必要なら「新規登録」タブへ。"
+        : "すでにアカウントがあるなら「ログイン」タブへ。";
+      authErr.classList.remove("show");
+      authErr.textContent = "";
+    }
+
+    function setAdminStatus(msg, type){
+      adminStatus.textContent = msg || "";
+      adminStatus.classList.remove("ok","err");
+      if(type) adminStatus.classList.add(type);
+    }
+
+    function escapeHtml(s){
       return String(s ?? "")
         .replaceAll("&","&amp;")
         .replaceAll("<","&lt;")
@@ -575,342 +1133,1374 @@
         .replaceAll('"',"&quot;")
         .replaceAll("'","&#039;");
     }
-    function escapeAttr(s){
-      // attribute safe (minimal)
-      return escapeHTML(s).replaceAll("\n","").replaceAll("\r","");
-    }
 
-    // Firebase games (from Firestore)
-    let remoteGames = []; // {name, desc, url, img}
-    function render(){
-      const merged = [...remoteGames, ...defaultGames];
-      const total = Math.max(BASE_SLOTS, merged.length);
-      const slots = Array.from({length: total}, (_, i) => merged[i] ?? {});
-      grid.innerHTML = slots.map(slotHTML).join("");
-    }
-
-    // =========================
-    // Firebase init (guard)
-    // =========================
-    let app, auth, db, storage;
-    let unsubGames = null;
-
-    function initFirebase(){
-      if (!window.firebase) {
-        console.error("Firebase SDK not loaded yet");
-        return;
-      }
-      app = firebase.initializeApp(firebaseConfig);
-      auth = firebase.auth();
-      db = firebase.firestore();
-      storage = firebase.storage();
-
-      // Persistence (ログイン維持)
-      auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});
-    }
-
-    // =========================
-    // Auth UI
-    // =========================
-    function openAuth(){
-      setErr(authErr,"");
-      setOk(authOk,"");
-      if (isFileProtocol()){
-        // file:// は必ず落ちるので、先に明示
-        setErr(authErr,
-`このページは file://（ローカル直開き）で開かれているため、Firebase Auth の仕様でログインできません。
-対処：
-・VSCode Live Server 等で http://localhost で開く
-・GitHub Pages / Firebase Hosting で https で開く
-・/files のようなHTTP配信で開く
-
-※原因：オリジンが "null" になり、Authentication の Authorized domains に登録できないため`);
-      }
-      showOverlay(authOverlay);
-      setTimeout(()=>authEmail.focus(), 50);
-    }
-    function closeAuth(){ hideOverlay(authOverlay); }
-
-    function openAdd(){
-      setErr(addErr,"");
-      setOk(addOk,"");
-      gName.value = "";
-      gDesc.value = "";
-      gUrl.value  = "";
-      gImgFile.value = "";
-      gImgUrl.value  = "";
-      miniPreview.innerHTML = '<span class="tiny">NO IMG</span>';
-      miniInfo.textContent = "";
-      showOverlay(addOverlay);
-      setTimeout(()=>gName.focus(), 50);
-    }
-    function closeAdd(){ hideOverlay(addOverlay); }
-
-    btnLogin.addEventListener("click", openAuth);
-    authClose.addEventListener("click", closeAuth);
-    authOverlay.addEventListener("click", (e)=>{ if(e.target === authOverlay) closeAuth(); });
-
-    btnAdd.addEventListener("click", openAdd);
-    addClose.addEventListener("click", closeAdd);
-    btnCancelAdd.addEventListener("click", closeAdd);
-    addOverlay.addEventListener("click", (e)=>{ if(e.target === addOverlay) closeAdd(); });
-
-    btnLogout.addEventListener("click", async ()=>{
-      try{ await auth.signOut(); }catch(e){ console.warn(e); }
-    });
-
-    // Preview for image file
-    gImgFile.addEventListener("change", ()=>{
-      const f = gImgFile.files && gImgFile.files[0];
-      if (!f){
-        miniPreview.innerHTML = '<span class="tiny">NO IMG</span>';
-        miniInfo.textContent = "";
-        return;
-      }
-      const url = URL.createObjectURL(f);
-      miniPreview.innerHTML = `<img src="${url}" alt="">`;
-      miniInfo.textContent = `${f.name} (${Math.round(f.size/1024)} KB)`;
-    });
-
-    // =========================
-    // Auth Actions
-    // =========================
-    async function doLogin(){
-      setErr(authErr,"");
-      setOk(authOk,"");
-      const email = (authEmail.value || "").trim();
-      const pass  = (authPass.value || "").trim();
-      if (!email || !pass){
-        setErr(authErr, "メールアドレスとパスワードを入力してください。");
-        return;
-      }
-      try{
-        await auth.signInWithEmailAndPassword(email, pass);
-        setOk(authOk, "ログインしました。");
-        setTimeout(closeAuth, 350);
-      }catch(e){
-        // よくあるエラーを人間向けに
-        const code = e && e.code ? e.code : "";
-        if (code === "auth/unauthorized-domain"){
-          setErr(authErr,
-`ログインできません：unauthorized-domain
-対処：Firebase Console → Authentication → Settings → Authorized domains に
-今開いているドメインを追加してください（例：localhost / 127.0.0.1 / GitHub Pagesドメイン）。
-※ file:// は不可です。`);
-        }else if (code === "auth/user-not-found"){
-          setErr(authErr, "ユーザーが見つかりません。「新規登録」を押してください。");
-        }else if (code === "auth/wrong-password"){
-          setErr(authErr, "パスワードが違います。");
-        }else if (code === "auth/invalid-email"){
-          setErr(authErr, "メールアドレスの形式が正しくありません。");
-        }else{
-          setErr(authErr, `ログインに失敗しました。\n${code || ""}\n${e.message || e}`);
-        }
-      }
-    }
-
-    async function doSignup(){
-      setErr(authErr,"");
-      setOk(authOk,"");
-      const email = (authEmail.value || "").trim();
-      const pass  = (authPass.value || "").trim();
-      if (!email || !pass){
-        setErr(authErr, "メールアドレスとパスワードを入力してください。");
-        return;
-      }
-      try{
-        await auth.createUserWithEmailAndPassword(email, pass);
-        setOk(authOk, "登録しました。ログイン済みです。");
-        setTimeout(closeAuth, 350);
-      }catch(e){
-        const code = e && e.code ? e.code : "";
-        if (code === "auth/email-already-in-use"){
-          setErr(authErr, "そのメールは既に登録されています。「ログイン」を押してください。");
-        }else if (code === "auth/weak-password"){
-          setErr(authErr, "パスワードが弱すぎます（もう少し長くしてください）。");
-        }else if (code === "auth/unauthorized-domain"){
-          setErr(authErr,
-`unauthorized-domain です。
-対処：Firebase Console → Authentication → Settings → Authorized domains に今のドメインを追加してください。
-※ file:// は不可です。`);
-        }else{
-          setErr(authErr, `登録に失敗しました。\n${code || ""}\n${e.message || e}`);
-        }
-      }
-    }
-
-    btnDoLogin.addEventListener("click", doLogin);
-    btnSignup.addEventListener("click", doSignup);
-    authPass.addEventListener("keydown", (e)=>{
-      if (e.key === "Enter") doLogin();
-    });
-
-    // =========================
-    // Firestore realtime load
-    // =========================
-    function startGamesListener(){
-      if (unsubGames) { unsubGames(); unsubGames = null; }
-      // createdAt desc. createdAtがnullでも並ぶようにfallback処理はrender側
-      unsubGames = db.collection("games")
-        .orderBy("createdAt", "desc")
-        .limit(50)
-        .onSnapshot((snap)=>{
-          const list = [];
-          snap.forEach(doc=>{
-            const d = doc.data() || {};
-            list.push({
-              id: doc.id,
-              name: d.name || "",
-              desc: d.desc || "",
-              url:  d.url || "",
-              img:  d.img || ""
-            });
-          });
-          remoteGames = list;
-          render();
-        }, (err)=>{
-          console.warn(err);
-          // 権限が閉じているとここに来る
-          remoteGames = [];
-          render();
-          const msg = (err && err.message) ? err.message : String(err);
-          document.getElementById("footnote").innerHTML =
-            `Firestore の読み込みでエラー：<code>${escapeHTML(msg)}</code><br/>
-             もし <code>Missing or insufficient permissions</code> なら、Firestore ルールで games の read を許可してください。`;
-        });
-    }
-
-    // =========================
-    // Add Game Save
-    // =========================
     function normalizeUrl(u){
-      u = (u || "").trim();
-      if (!u) return "";
-      // 既に http(s) ならそのまま
-      if (/^https?:\/\//i.test(u)) return u;
-      // //example.com みたいなのも補正
-      if (/^\/\//.test(u)) return "https:" + u;
-      return "https://" + u;
+      const s = (u || "").trim();
+      if(!s) return "";
+      if(!/^https?:\/\//i.test(s)) return "https://" + s;
+      return s;
     }
 
-    async function uploadImageFile(file, docId){
-      const safeName = (file.name || "image").replace(/[^\w.\-]+/g, "_");
-      const path = `game_images/${docId}/${Date.now()}_${safeName}`;
-      const ref = storage.ref().child(path);
-      const snap = await ref.put(file);
-      const url = await snap.ref.getDownloadURL();
-      return url;
+    function clamp(n, min, max){
+      return Math.max(min, Math.min(max, n));
+    }
+
+    function normTag(s){
+      let t = String(s || "").trim();
+      if(!t) return "";
+      t = t.replace(/^#+/, "");
+      t = t.replace(/\s+/g, " ");
+      t = t.slice(0, 24);
+      return t;
+    }
+
+    function tagKey(tag){
+      return String(tag || "")
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, " ")
+        .replace(/[.#$/\[\]]/g, "");
+    }
+
+    function hasTag(t){
+      const key = String(t || "").toLowerCase();
+      return formTags.some(x => String(x).toLowerCase() === key);
+    }
+
+    function addTagToForm(t){
+      const tag = normTag(t);
+      if(!tag) return;
+      if(hasTag(tag)) return;
+      formTags.push(tag);
+      renderTagsUI();
+    }
+
+    function removeTagFromForm(t){
+      const key = String(t || "").toLowerCase();
+      formTags = formTags.filter(x => String(x).toLowerCase() !== key);
+      renderTagsUI();
+    }
+
+    function toggleTag(t){
+      const tag = normTag(t);
+      if(!tag) return;
+      if(hasTag(tag)) removeTagFromForm(tag);
+      else addTagToForm(tag);
+    }
+
+    function renderPlayersTimeLabels(){
+      fPlayersLabel.textContent = `👤${formMinPlayers}~${formMaxPlayers}`;
+      fTimeLabel.textContent = `⌚${formTimeMin}m`;
+    }
+
+    function computeAllTags(){
+      const pool = [];
+      for(const t of (dbTags || [])){
+        const tt = normTag(t);
+        if(tt) pool.push(tt);
+      }
+      const merged = [...seedGames, ...dbGames];
+      for(const g of merged){
+        const tags = Array.isArray(g?.tags) ? g.tags : [];
+        for(const t of tags){
+          const tt = normTag(t);
+          if(tt) pool.push(tt);
+        }
+      }
+      const seen = new Set();
+      const out = [];
+      for(const t of pool){
+        const k = t.toLowerCase();
+        if(seen.has(k)) continue;
+        seen.add(k);
+        out.push(t);
+      }
+      return out.slice(0, 80);
+    }
+
+    function renderTagsUI(){
+      selectedTagsEl.innerHTML = formTags.length
+        ? formTags.map(t => {
+            const enc = encodeURIComponent(t);
+            return `
+              <span class="tagPickChip on" draggable="true" data-tagval="${escapeHtml(enc)}" title="ドラッグで並べ替え / クリックで解除">
+                ${escapeHtml(t)} <span class="x">×</span>
+              </span>
+            `;
+          }).join("")
+        : `<span style="opacity:.55;font-size:12px;">（未選択）</span>`;
+
+      const sugg = computeAllTags();
+      tagSuggestionsEl.innerHTML = sugg.length
+        ? sugg.map(t => {
+            const on = hasTag(t);
+            const k = tagKey(t);
+            const canDelete = !!currentUser && !!k && !!dbTagsMap[k];
+            return `
+              <span class="tagPickChip ${on ? "on" : ""}" data-tag="${escapeHtml(t)}" title="クリックで追加/解除">
+                ${escapeHtml(t)}${on ? `<span class="x">×</span>` : ""}
+                ${canDelete ? `<span class="del" data-del="${escapeHtml(k)}" title="辞書から削除">🗑</span>` : ""}
+              </span>
+            `;
+          }).join("")
+        : `<span style="opacity:.55;font-size:12px;">（まだタグがありません）</span>`;
+    }
+
+    function syncDescHeights(){
+      if(!grid) return;
+      const boxes = [...grid.querySelectorAll(".descBox")];
+      if(!boxes.length) return;
+
+      for(const b of boxes) b.style.minHeight = "0px";
+
+      const groups = new Map();
+      for(const b of boxes){
+        const top = Math.round(b.getBoundingClientRect().top);
+        if(!groups.has(top)) groups.set(top, []);
+        groups.get(top).push(b);
+      }
+
+      for(const arr of groups.values()){
+        let maxH = 0;
+        for(const b of arr) maxH = Math.max(maxH, b.scrollHeight);
+        for(const b of arr) b.style.minHeight = maxH + "px";
+      }
+    }
+
+    function syncSlotHeights(){
+      if(!grid) return;
+      const slots = [...grid.querySelectorAll(".slot")];
+      if(!slots.length) return;
+
+      for(const s of slots) s.style.minHeight = "0px";
+
+      const groups = new Map();
+      for(const s of slots){
+        const top = Math.round(s.getBoundingClientRect().top);
+        if(!groups.has(top)) groups.set(top, []);
+        groups.get(top).push(s);
+      }
+
+      for(const arr of groups.values()){
+        let maxH = 0;
+        for(const s of arr) maxH = Math.max(maxH, s.offsetHeight);
+        for(const s of arr) s.style.minHeight = maxH + "px";
+      }
+    }
+
+    function syncAllHeights(){
+      syncDescHeights();
+      syncSlotHeights();
+    }
+
+    let _syncT = 0;
+    function requestSyncLayout(){
+      cancelAnimationFrame(_syncT);
+      _syncT = requestAnimationFrame(() => syncAllHeights());
+    }
+
+    // =========================
+    // ✅ secondframe プレビュー表示/非表示
+    // =========================
+    function closeAllSfOverlays(){
+      const overlays = [...grid.querySelectorAll(".sfOverlay.show")];
+      for(const ov of overlays){
+        ov.classList.remove("show");
+        ov.setAttribute("aria-hidden","true");
+        const a = ov.querySelector(".sfImgLink");
+        if(a) a.dataset.allowNav = IS_COARSE ? "0" : "1";
+      }
+    }
+
+    function openSfOverlayForSlot(slotEl){
+      if(!slotEl) return;
+      const hasPrev = slotEl.getAttribute("data-hasprev")==="1";
+      if(!hasPrev) return;
+
+      closeAllSfOverlays();
+      const ov = slotEl.querySelector(".sfOverlay");
+      if(!ov) return;
+
+      ov.classList.add("show");
+      ov.setAttribute("aria-hidden","false");
+
+      const a = ov.querySelector(".sfImgLink");
+      if(a){
+        a.dataset.allowNav = IS_COARSE ? "0" : "1";
+      }
+    }
+
+    // =========================
+    // ✅ Slot HTML
+    // =========================
+    function slotHTML(g = {}, index, isMyGame){
+      const {name, desc, url, img, previewImg, players, timeMin, tags, id} = g || {};
+      const hasGame = !!url;
+
+      const title = hasGame
+        ? `<span class="gameTitle">${escapeHtml(name || "（無題）")}</span>`
+        : `<span class="gameTitle" style="opacity:.45;"></span>`;
+
+      const p = players && (players.min || players.max) ? players : null;
+      const minP = p ? (p.min ?? "") : "";
+      const maxP = p ? (p.max ?? "") : "";
+      const showPlayers = (minP !== "" && maxP !== "") ? `👤${minP}~${maxP}` : "";
+
+      const tm = Number.isFinite(Number(timeMin)) ? Number(timeMin) : null;
+      const showTime = (tm && tm > 0) ? `⌚${tm}m` : "";
+
+      const metaRow = (hasGame && (showPlayers || showTime))
+        ? `<div class="metaRow">
+             ${showPlayers ? `<span class="metaPill">${escapeHtml(showPlayers)}</span>` : ""}
+             ${showTime ? `<span class="metaPill">${escapeHtml(showTime)}</span>` : ""}
+           </div>`
+        : "";
+
+      const tagArr = Array.isArray(tags) ? tags.map(normTag).filter(Boolean).slice(0, 10) : [];
+      const tagRow = (hasGame && tagArr.length)
+        ? `<div class="tagRow">${tagArr.map(t => `<span class="tagChip">${escapeHtml(t)}</span>`).join("")}</div>`
+        : "";
+
+      const description = hasGame
+        ? `<p class="desc">${escapeHtml(desc || "")}</p>`
+        : `<p class="desc" style="opacity:.45;">Loading...</p>`;
+
+      const editBtn = (hasGame && currentUser && isMyGame && id)
+        ? `<button class="cardEditBtn" data-action="editGame" data-id="${escapeHtml(id)}" title="このゲームを編集">編集</button>`
+        : "";
+
+      const imgHTML = (hasGame && img)
+        ? `
+          <div class="imgBase" aria-hidden="true">
+            <img class="previewImg" src="${escapeHtml(img)}" alt="">
+          </div>
+        `
+        : `
+          <div class="imgBase" aria-hidden="true">
+            <div class="empty"></div>
+          </div>
+        `;
+
+      const hasPrev = !!(hasGame && previewImg);
+      const prevLink = (hasPrev && hasGame)
+        ? `
+          <a class="sfImgLink" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" data-allow-nav="${IS_COARSE ? "0" : "1"}">
+            <img src="${escapeHtml(previewImg)}" alt="">
+          </a>
+        `
+        : "";
+
+      return `
+        <article class="slot" aria-label="slot-${index+1}"
+          data-gameid="${escapeHtml(id || "")}"
+          data-my="${isMyGame ? "1":"0"}"
+          data-hasprev="${hasPrev ? "1":"0"}"
+          draggable="${(currentUser && isMyGame && id) ? "true" : "false"}">
+
+          <div class="secondframe" data-action="sf" aria-label="secondframe"></div>
+
+          <div class="sfOverlay" aria-hidden="true">
+            <div class="sfInner">
+              ${prevLink}
+              <button class="sfClose" data-action="sfClose" aria-label="close">×</button>
+            </div>
+          </div>
+
+          <div class="infoBox">
+            <div class="topRow">
+              <div class="imgCol">
+                ${imgHTML}
+              </div>
+              <div class="metaCol">
+                ${title}
+                ${metaRow}
+                ${tagRow}
+              </div>
+            </div>
+
+            <div class="descBox">
+              ${description}
+            </div>
+          </div>
+
+          ${editBtn}
+        </article>
+      `;
+    }
+
+    function updateAuthUI(){
+      const signedIn = !!currentUser;
+
+      btnLogin.classList.toggle("hidden", signedIn);
+      userPill.classList.toggle("hidden", !signedIn);
+      adminPanel.classList.toggle("hidden", !signedIn);
+
+      if(signedIn){
+        userEmail.textContent = currentUser.email || "(no email)";
+        setAdminStatus("", null);
+      }else{
+        setAdminStatus("ログインするとゲームを追加できます", null);
+      }
+      renderGrid();
+      renderTagsUI();
+    }
+
+    function setEditMode(on){
+      btnCancelEdit.style.display = on ? "" : "none";
+      btnAdd.textContent = on ? "更新" : "追加";
+      adminTitleText.textContent = on ? "ゲーム編集（ログイン中のみ）" : "ゲーム追加（ログイン中のみ）";
+      adminHint.textContent = on
+        ? "更新するとRealtime DBへ反映（画像/プレビュー画像は未入力なら変更しません）"
+        : "追加するとRealtime DBへ書き込み→一覧に即反映";
+    }
+
+    function exitEditMode(){
+      editingId = null;
+      editingOriginal = null;
+      setEditMode(false);
+      setAdminStatus("", null);
+    }
+
+    function toast(text, ms=900){
+      dropHint.textContent = text;
+      dropHint.classList.add("show");
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => {
+        if(!draggingSlot) dropHint.classList.remove("show");
+      }, ms);
+    }
+
+    // =========================
+    // ✅ Firebase init & listeners
+    // =========================
+    function friendlyAuthError(e){
+      const code = e?.code || "";
+      const msg  = e?.message || String(e || "");
+
+      if(code === "auth/invalid-email") return "メールアドレスの形式が正しくありません。";
+      if(code === "auth/missing-password") return "パスワードを入力してください。";
+      if(code === "auth/weak-password") return "パスワードが弱いです（6文字以上にしてください）。";
+      if(code === "auth/user-not-found") return "このメールのユーザーが見つかりません（新規登録してください）。";
+      if(code === "auth/wrong-password") return "パスワードが違います。";
+      if(code === "auth/email-already-in-use") return "このメールはすでに使われています（ログインしてください）。";
+      if(code === "auth/network-request-failed") return "ネットワークに接続できません（オフライン/ブロックの可能性）。";
+      if(code === "auth/too-many-requests") return "試行回数が多すぎます。少し待ってから再度お試しください。";
+      if(code === "auth/operation-not-allowed") return "Firebase側で「メール/パスワード」認証が有効になっていません。";
+
+      const origin = location.origin;
+      const protocol = location.protocol;
+      const extra = (protocol === "file:" || origin === "null")
+        ? "\n\n※ file:// で開いている場合、ブラウザ設定によっては外部通信が制限されることがあります。"
+        : "";
+
+      return `ログインに失敗しました。\n${code ? `[${code}] ` : ""}${msg}${extra}`;
+    }
+
+    async function initFirebase(){
+      try{
+        if(!window.firebase) throw new Error("Firebase SDKの読み込みに失敗しました。");
+
+        if(!firebase.apps || !firebase.apps.length){
+          firebase.initializeApp(firebaseConfig);
+        }
+
+        auth = firebase.auth();
+        db = firebase.database();
+
+        try{
+          await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+        }catch(_){}
+
+        firebaseReady = true;
+
+        auth.onAuthStateChanged((user) => {
+          currentUser = user || null;
+
+          // ✅ ログイン直後は、DBが返るまで「前回の並びキャッシュ」を一時適用して逆転を防ぐ
+          if(currentUser && cachedUid && currentUser.uid === cachedUid && cachedOrderMap && typeof cachedOrderMap === "object"){
+            myOrderMap = cachedOrderMap;
+          }
+
+          exitEditMode();
+          updateAuthUI();
+
+          startDbListener();
+          startTagsListener();
+
+          if(currentUser){
+            // ✅ 最終UIDを保存（ログアウト後も同じ並びを維持）
+            cacheOrderToLocal(currentUser.uid, myOrderMap || {});
+            startOrderListener(currentUser.uid);
+          }else{
+            stopOrderListener();
+          }
+
+          renderGrid();
+          renderTagsUI();
+        });
+
+        renderGrid();
+        updateAuthUI();
+      }catch(err){
+        firebaseReady = false;
+        renderGrid();
+        updateAuthUI();
+        setAdminStatus("Firebase初期化エラー: " + (err?.message || err), "err");
+      }
+    }
+
+    function startDbListener(){
+      if(gamesRef) return;
+
+      gamesRef = db.ref("games");
+
+      gamesRef.on("value", (snap) => {
+        const arr = [];
+        snap.forEach(child => {
+          const v = child.val() || {};
+          const players = v.players && typeof v.players === "object"
+            ? { min: Number(v.players.min ?? 0) || 0, max: Number(v.players.max ?? 0) || 0 }
+            : null;
+
+          const tags = Array.isArray(v.tags) ? v.tags : [];
+
+          arr.push({
+            id: child.key,
+            name: v.name || "",
+            desc: v.desc || "",
+            url: v.url || "",
+            img: v.img || "",
+            previewImg: v.previewImg || "",
+            players: players ? {min: players.min, max: players.max} : null,
+            timeMin: Number(v.timeMin ?? 0) || 0,
+            tags,
+            createdAt: v.createdAt || 0,
+            createdBy: v.createdBy || "",
+            createdByEmail: v.createdByEmail || ""
+          });
+        });
+
+        dbGames = arr;
+        renderGrid();
+        renderTagsUI();
+      }, (err) => {
+        dbGames = [];
+        renderGrid();
+        setAdminStatus("DB読み込み権限エラー: " + (err?.message || err), "err");
+      });
+    }
+
+    function startTagsListener(){
+      if(tagsRef) return;
+
+      tagsRef = db.ref("tags");
+      tagsRef.on("value", (snap) => {
+        const out = [];
+        const map = {};
+        snap.forEach(child => {
+          const v = child.val() || {};
+          const key = child.key || "";
+          let name = "";
+          if(typeof v === "string"){
+            name = normTag(v);
+          }else{
+            name = normTag(v.name || key || "");
+          }
+          if(name){
+            out.push(name);
+            map[key] = name;
+          }
+        });
+
+        const seen = new Set();
+        dbTags = out.filter(Boolean).filter(t => {
+          const k = t.toLowerCase();
+          if(seen.has(k)) return false;
+          seen.add(k);
+          return true;
+        });
+
+        dbTagsMap = map;
+
+        renderTagsUI();
+      }, (err) => {
+        dbTags = [];
+        dbTagsMap = {};
+        renderTagsUI();
+      });
+    }
+
+    function startOrderListener(uid){
+      if(orderUid === uid && orderRef) return;
+
+      stopOrderListener();
+      orderUid = uid;
+      orderRef = db.ref("userGameOrder").child(uid);
+
+      orderRef.on("value", (snap) => {
+        myOrderMap = snap.val() || {};
+        cacheOrderToLocal(uid, myOrderMap); // ✅ ローカルへ常に保存（ログアウト後も並び維持）
+        renderGrid();
+      }, (err) => {
+        myOrderMap = {};
+        renderGrid();
+      });
+    }
+
+    function stopOrderListener(){
+      try{
+        if(orderRef) orderRef.off();
+      }catch(_){}
+      orderRef = null;
+      orderUid = null;
+      myOrderMap = {};
+    }
+
+    // =========================
+    // ✅ tags: persist
+    // =========================
+    async function upsertTagToDB(tag){
+      const t = normTag(tag);
+      if(!t) return;
+      if(!firebaseReady || !db) return;
+      if(!currentUser) throw new Error("タグ追加はログインが必要です。");
+
+      const k = tagKey(t);
+      if(!k) return;
+
+      if((dbTags || []).some(x => String(x).toLowerCase() === t.toLowerCase())) return;
+
+      const payload = {
+        name: t,
+        createdAt: firebase.database.ServerValue.TIMESTAMP,
+        createdBy: currentUser.uid,
+        createdByEmail: currentUser.email || ""
+      };
+
+      await db.ref("tags").child(k).set(payload);
+    }
+
+    async function upsertTagsToDB(tags){
+      const arr = (tags || []).map(normTag).filter(Boolean);
+      if(!arr.length) return;
+      if(!currentUser) return;
+
+      const updates = {};
+      for(const t of arr){
+        const k = tagKey(t);
+        if(!k) continue;
+        if((dbTags || []).some(x => String(x).toLowerCase() === t.toLowerCase())) continue;
+        updates[k] = {
+          name: t,
+          createdAt: firebase.database.ServerValue.TIMESTAMP,
+          createdBy: currentUser.uid,
+          createdByEmail: currentUser.email || ""
+        };
+      }
+      if(Object.keys(updates).length){
+        await db.ref("tags").update(updates);
+      }
+    }
+
+    async function deleteTagFromDB(tagKeyStr){
+      if(!firebaseReady || !db) throw new Error("Firebaseが初期化できていません。");
+      if(!currentUser) throw new Error("タグ削除はログインが必要です。");
+      const key = String(tagKeyStr || "").trim();
+      if(!key) return;
+
+      if(deletingTagBusy) return;
+      deletingTagBusy = true;
+
+      try{
+        const name = dbTagsMap?.[key] || key;
+        const ok = window.confirm(`タグ辞書から削除します。\n\n「${name}」\n\n※ 既に登録済みゲームのタグ表示は残る可能性があります（辞書から消えるだけ）。\n削除しますか？`);
+        if(!ok) return;
+
+        await db.ref("tags").child(key).remove();
+
+        const lower = String(name).toLowerCase();
+        formTags = (formTags || []).filter(t => String(t).toLowerCase() !== lower);
+        renderTagsUI();
+
+        setAdminStatus("タグを削除しました。", "ok");
+        setTimeout(() => setAdminStatus("", null), 900);
+      }finally{
+        deletingTagBusy = false;
+      }
+    }
+
+    // =========================
+    // ✅ Add / Update game
+    // =========================
+    function readFileAsDataURL(file){
+      return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(String(r.result || ""));
+        r.onerror = () => reject(new Error("画像の読み込みに失敗しました"));
+        r.readAsDataURL(file);
+      });
+    }
+
+    function resetFormState(){
+      formMinPlayers = 3;
+      formMaxPlayers = 6;
+      formTimeMin = 20;
+      formTags = [];
+      renderPlayersTimeLabels();
+      renderTagsUI();
+    }
+
+    function clearForm(){
+      fName.value = "";
+      fUrl.value = "";
+      fDesc.value = "";
+      fImgUrl.value = "";
+      fImgFile.value = "";
+
+      fPrevImgUrl.value = "";
+      fPrevImgFile.value = "";
+
+      fTagInput.value = "";
+      resetFormState();
+      setAdminStatus("", null);
+      exitEditMode();
+    }
+
+    function getNextMyOrder(){
+      const vals = Object.values(myOrderMap || {}).map(v => Number(v)).filter(v => Number.isFinite(v) && v > 0);
+      const max = vals.length ? Math.max(...vals) : 0;
+      return max + 1;
     }
 
     async function saveGame(){
-      setErr(addErr,"");
-      setOk(addOk,"");
+      if(editingId) return await updateGame(editingId);
+      return await addGame();
+    }
 
-      const user = auth.currentUser;
-      if (!user){
-        setErr(addErr, "ログインしてください。");
-        return;
-      }
-
-      const name = (gName.value || "").trim();
-      const desc = (gDesc.value || "").trim();
-      const url  = normalizeUrl(gUrl.value);
-
-      if (!name){
-        setErr(addErr, "題名は必須です。");
-        return;
-      }
-      if (!url){
-        setErr(addErr, "リンクは必須です。");
-        return;
-      }
-
-      const file = gImgFile.files && gImgFile.files[0];
-      const imgUrlManual = normalizeUrl(gImgUrl.value); // URLでもOK（任意）
-
-      btnSaveGame.disabled = true;
-      btnSaveGame.textContent = "保存中…";
+    async function addGame(){
       try{
-        // まずFirestoreに作ってdocIdを確保
-        const docRef = await db.collection("games").add({
+        if(!firebaseReady) throw new Error("Firebaseが初期化できていません。");
+        if(!currentUser) throw new Error("ログインしてください。");
+
+        const name = (fName.value || "").trim();
+        const desc = (fDesc.value || "").trim();
+        const url  = normalizeUrl(fUrl.value || "");
+
+        const imgUrl = (fImgUrl.value || "").trim();
+        const prevUrl = (fPrevImgUrl.value || "").trim();
+
+        if(!name) throw new Error("名前を入力してください。");
+        if(!url)  throw new Error("リンクを入力してください。");
+
+        let img = "";
+        const file = fImgFile.files && fImgFile.files[0];
+        if(file){
+          img = await readFileAsDataURL(file);
+        }else if(imgUrl){
+          img = imgUrl;
+        }
+
+        let previewImg = "";
+        const pfile = fPrevImgFile.files && fPrevImgFile.files[0];
+        if(pfile){
+          previewImg = await readFileAsDataURL(pfile);
+        }else if(prevUrl){
+          previewImg = prevUrl;
+        }
+
+        formMinPlayers = clamp(formMinPlayers, 1, 12);
+        formMaxPlayers = clamp(formMaxPlayers, 1, 12);
+        if(formMinPlayers > formMaxPlayers) formMinPlayers = formMaxPlayers;
+
+        formTimeMin = clamp(formTimeMin, 5, 240);
+
+        const tags = (formTags || []).map(normTag).filter(Boolean).slice(0, 20);
+
+        setAdminStatus("保存中...", null);
+
+        const newRef = db.ref("games").push();
+        const payload = {
           name,
           desc,
           url,
-          img: "",            // 後で埋める
-          uid: user.uid,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
+          img,
+          previewImg,
+          players: { min: formMinPlayers, max: formMaxPlayers },
+          timeMin: formTimeMin,
+          tags,
+          createdAt: firebase.database.ServerValue.TIMESTAMP,
+          createdBy: currentUser.uid,
+          createdByEmail: currentUser.email || ""
+        };
 
-        let img = "";
-        if (file){
-          img = await uploadImageFile(file, docRef.id);
-        }else if (imgUrlManual){
-          img = imgUrlManual;
+        await newRef.set(payload);
+        await upsertTagsToDB(tags);
+
+        if(orderRef){
+          const nextOrder = getNextMyOrder();
+          await orderRef.child(newRef.key).set(nextOrder);
         }
 
-        if (img){
-          await docRef.update({ img });
+        setAdminStatus("追加しました！", "ok");
+        clearForm();
+      }catch(err){
+        const msg = err?.message || String(err || "");
+        setAdminStatus(msg, "err");
+      }
+    }
+
+    async function updateGame(gameId){
+      try{
+        if(!firebaseReady) throw new Error("Firebaseが初期化できていません。");
+        if(!currentUser) throw new Error("ログインしてください。");
+        if(!editingOriginal) throw new Error("編集対象が見つかりません。");
+
+        if(editingOriginal.createdBy !== currentUser.uid){
+          throw new Error("自分が登録したゲームだけ編集できます。");
         }
 
-        setOk(addOk, "保存しました。");
-        // 少し見せてから閉じる
-        setTimeout(()=>{
-          closeAdd();
-        }, 350);
+        const name = (fName.value || "").trim();
+        const desc = (fDesc.value || "").trim();
+        const url  = normalizeUrl(fUrl.value || "");
 
-      }catch(e){
-        const code = e && e.code ? e.code : "";
-        const msg  = e && e.message ? e.message : String(e);
+        const imgUrl = (fImgUrl.value || "").trim();
+        const prevUrl = (fPrevImgUrl.value || "").trim();
 
-        if (String(msg).includes("Missing or insufficient permissions")){
-          setErr(addErr,
-`保存に失敗：Missing or insufficient permissions
-対処：Firestore/Storage のルールで「ログインユーザーの create/write」を許可してください。
-（この返答の上に貼ったルール例をそのまま使うのが早いです）`);
+        if(!name) throw new Error("名前を入力してください。");
+        if(!url)  throw new Error("リンクを入力してください。");
+
+        let img = editingOriginal.img || "";
+        const file = fImgFile.files && fImgFile.files[0];
+        if(file){
+          img = await readFileAsDataURL(file);
+        }else if(imgUrl){
+          img = imgUrl;
+        }
+
+        let previewImg = editingOriginal.previewImg || "";
+        const pfile = fPrevImgFile.files && fPrevImgFile.files[0];
+        if(pfile){
+          previewImg = await readFileAsDataURL(pfile);
+        }else if(prevUrl){
+          previewImg = prevUrl;
+        }
+
+        formMinPlayers = clamp(formMinPlayers, 1, 12);
+        formMaxPlayers = clamp(formMaxPlayers, 1, 12);
+        if(formMinPlayers > formMaxPlayers) formMinPlayers = formMaxPlayers;
+
+        formTimeMin = clamp(formTimeMin, 5, 240);
+
+        const tags = (formTags || []).map(normTag).filter(Boolean).slice(0, 20);
+
+        setAdminStatus("更新中...", null);
+
+        const patch = {
+          name,
+          desc,
+          url,
+          img,
+          previewImg,
+          players: { min: formMinPlayers, max: formMaxPlayers },
+          timeMin: formTimeMin,
+          tags,
+          updatedAt: firebase.database.ServerValue.TIMESTAMP,
+          updatedBy: currentUser.uid,
+          updatedByEmail: currentUser.email || ""
+        };
+
+        await db.ref("games").child(gameId).update(patch);
+        await upsertTagsToDB(tags);
+
+        setAdminStatus("更新しました！", "ok");
+        clearForm();
+      }catch(err){
+        const msg = err?.message || String(err || "");
+        setAdminStatus(msg, "err");
+      }
+    }
+
+    function startEdit(gameId){
+      if(!currentUser) return;
+
+      const g = dbGames.find(x => x.id === gameId);
+      if(!g){
+        setAdminStatus("編集対象が見つかりません。", "err");
+        return;
+      }
+      if(g.createdBy !== currentUser.uid){
+        setAdminStatus("自分が登録したゲームだけ編集できます。", "err");
+        return;
+      }
+
+      editingId = gameId;
+      editingOriginal = g;
+
+      fName.value = g.name || "";
+      fUrl.value = g.url || "";
+      fDesc.value = g.desc || "";
+      fImgUrl.value = "";
+      fImgFile.value = "";
+
+      fPrevImgUrl.value = "";
+      fPrevImgFile.value = "";
+
+      formMinPlayers = clamp(Number(g.players?.min ?? 3) || 3, 1, 12);
+      formMaxPlayers = clamp(Number(g.players?.max ?? 6) || 6, 1, 12);
+      if(formMinPlayers > formMaxPlayers) formMinPlayers = formMaxPlayers;
+
+      formTimeMin = clamp(Number(g.timeMin ?? 20) || 20, 5, 240);
+      formTimeMin = Math.round(formTimeMin / 5) * 5;
+      formTimeMin = clamp(formTimeMin, 5, 240);
+
+      formTags = Array.isArray(g.tags) ? g.tags.map(normTag).filter(Boolean).slice(0, 20) : [];
+
+      renderPlayersTimeLabels();
+      renderTagsUI();
+
+      setEditMode(true);
+      setAdminStatus("編集モード：内容を直して「更新」を押してください。", null);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    // =========================
+    // ✅ Grid 表示（ログイン/ログアウトで順番が逆転しない）
+    // =========================
+    function getMyOrderedGameIds(uid, orderMap){
+      if(!uid) return [];
+      const mine = dbGames.filter(g => g && g.createdBy === uid);
+
+      const withOrder = [];
+      const withoutOrder = [];
+      for(const g of mine){
+        const ord = Number(orderMap?.[g.id]);
+        if(Number.isFinite(ord) && ord > 0) withOrder.push([ord, g.id]);
+        else withoutOrder.push(g);
+      }
+      withOrder.sort((a,b) => a[0]-b[0]);
+      withoutOrder.sort((a,b) => (b.createdAt||0)-(a.createdAt||0));
+
+      return [...withOrder.map(x=>x[1]), ...withoutOrder.map(x=>x.id)];
+    }
+
+    function makeDisplayGames(){
+      const dbSorted = [...dbGames].sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
+
+      // ✅ 表示用のUID/順番は「ログイン中はcurrent」「ログアウト時は最後のキャッシュ」を使う
+      const ctx = getOrderContext();
+      const uid = ctx.uid;
+      const orderMap = ctx.orderMap || {};
+
+      if(!uid){
+        // キャッシュが無い/未ログインなら通常の新しい順
+        return [...seedGames, ...dbSorted];
+      }
+
+      const myIds = new Set(getMyOrderedGameIds(uid, orderMap));
+
+      const mineOrdered = [];
+      for(const id of getMyOrderedGameIds(uid, orderMap)){
+        const g = dbGames.find(x => x.id === id);
+        if(g) mineOrdered.push(g);
+      }
+
+      const others = dbSorted.filter(g => !myIds.has(g.id));
+
+      // ✅ ここがポイント：ログイン/ログアウトで組み立て方を同じにする（逆転しない）
+      return [...seedGames, ...mineOrdered, ...others];
+    }
+
+    function renderGrid(){
+      const merged = makeDisplayGames();
+      const slots = Array.from({length: TOTAL_SLOTS}, (_, i) => merged[i] ?? {});
+
+      grid.innerHTML = slots.map((g, i) => {
+        const isMyGame = !!currentUser && !!g?.id && g.createdBy === currentUser.uid;
+        return slotHTML(g, i, isMyGame);
+      }).join("");
+
+      const imgs = [...grid.querySelectorAll("img.previewImg")];
+      for(const im of imgs){
+        if(im.complete) continue;
+        im.addEventListener("load", requestSyncLayout, { once:true });
+        im.addEventListener("error", requestSyncLayout, { once:true });
+      }
+
+      renderTagsUI();
+      requestSyncLayout();
+    }
+
+    function persistMyOrderFromGrid(){
+      if(!currentUser || !orderRef) return;
+
+      const els = [...grid.querySelectorAll(".slot")];
+      const ids = els
+        .map(el => ({ id: el.getAttribute("data-gameid") || "", my: el.getAttribute("data-my")==="1" }))
+        .filter(x => x.my && x.id)
+        .map(x => x.id);
+
+      const updates = {};
+      ids.forEach((id, idx) => updates[id] = idx + 1);
+
+      toast("順番を保存中...");
+      orderRef.update(updates).then(() => {
+        toast("順番を保存しました ✅");
+      }).catch(err => {
+        toast("保存に失敗: " + (err?.message || err), 1400);
+      });
+    }
+
+    // =========================
+    // ✅ Auth actions
+    // =========================
+    async function doAuth(){
+      try{
+        if(!firebaseReady) throw new Error("Firebaseが初期化できていません。");
+        authErr.classList.remove("show");
+        authErr.textContent = "";
+
+        const email = (authEmail.value || "").trim();
+        const pass  = (authPass.value || "");
+
+        if(!email) throw new Error("メールアドレスを入力してください。");
+        if(!pass)  throw new Error("パスワードを入力してください。");
+
+        try{ localStorage.setItem(LS_AUTH_EMAIL, email); }catch(_){}
+
+        if(authMode === "login"){
+          await auth.signInWithEmailAndPassword(email, pass);
         }else{
-          setErr(addErr, `保存に失敗しました。\n${code}\n${msg}`);
+          await auth.createUserWithEmailAndPassword(email, pass);
         }
-      }finally{
-        btnSaveGame.disabled = false;
-        btnSaveGame.textContent = "保存";
+
+        showModal(false);
+      }catch(err){
+        authErr.textContent = friendlyAuthError(err);
+        authErr.classList.add("show");
       }
     }
 
-    btnSaveGame.addEventListener("click", saveGame);
+    // =========================
+    // ✅ Events
+    // =========================
+    btnLogin.addEventListener("click", () => { setAuthMode("login"); showModal(true); });
+    btnLogout.addEventListener("click", async () => { try{ if(auth) await auth.signOut(); }catch(_){ } });
 
-    // =========================
-    // Boot
-    // =========================
-    function setAuthUI(user){
-      if (user){
-        btnLogin.style.display = "none";
-        btnLogout.style.display = "";
-        btnAdd.style.display = "";
-        userBadge.style.display = "";
-        userBadge.textContent = user.email || user.uid;
-      }else{
-        btnLogin.style.display = "";
-        btnLogout.style.display = "none";
-        btnAdd.style.display = "none";
-        userBadge.style.display = "none";
-        userBadge.textContent = "";
+    tabLogin.addEventListener("click", () => setAuthMode("login"));
+    tabSignup.addEventListener("click", () => setAuthMode("signup"));
+
+    btnCloseModal.addEventListener("click", () => showModal(false));
+    authModalOverlay.addEventListener("click", (e) => { if(e.target === authModalOverlay) showModal(false); });
+
+    btnAuthDo.addEventListener("click", doAuth);
+    authPass.addEventListener("keydown", (e) => { if(e.key === "Enter") doAuth(); });
+
+    authEmail.addEventListener("input", () => {
+      try{ localStorage.setItem(LS_AUTH_EMAIL, (authEmail.value||"").trim()); }catch(_){}
+    });
+
+    btnAdd.addEventListener("click", saveGame);
+    btnClear.addEventListener("click", clearForm);
+    btnCancelEdit.addEventListener("click", () => { clearForm(); setAdminStatus("編集をキャンセルしました。", null); });
+
+    function bumpMin(delta){
+      formMinPlayers = clamp(formMinPlayers + delta, 1, 12);
+      if(formMinPlayers > formMaxPlayers) formMinPlayers = formMaxPlayers;
+      renderPlayersTimeLabels();
+    }
+    function bumpMax(delta){
+      formMaxPlayers = clamp(formMaxPlayers + delta, 1, 12);
+      if(formMaxPlayers < formMinPlayers) formMaxPlayers = formMinPlayers;
+      renderPlayersTimeLabels();
+    }
+    plMinDown.addEventListener("click", () => bumpMin(-1));
+    plMinUp.addEventListener("click", () => bumpMin(+1));
+    plMaxDown.addEventListener("click", () => bumpMax(-1));
+    plMaxUp.addEventListener("click", () => bumpMax(+1));
+
+    function bumpTime(delta){
+      formTimeMin = clamp(formTimeMin + delta, 5, 240);
+      formTimeMin = Math.round(formTimeMin / 5) * 5;
+      formTimeMin = clamp(formTimeMin, 5, 240);
+      renderPlayersTimeLabels();
+    }
+    tmDown.addEventListener("click", () => bumpTime(-5));
+    tmUp.addEventListener("click", () => bumpTime(+5));
+
+    btnTagAdd.addEventListener("click", async () => {
+      try{
+        const raw = fTagInput.value;
+        const t = normTag(raw);
+        if(!t) return;
+
+        addTagToForm(t);
+        fTagInput.value = "";
+        fTagInput.focus();
+
+        await upsertTagToDB(t);
+
+        setAdminStatus("タグを登録しました（以降も候補に出ます）", "ok");
+        setTimeout(() => setAdminStatus("", null), 900);
+      }catch(err){
+        setAdminStatus(err?.message || String(err || ""), "err");
       }
+    });
+
+    fTagInput.addEventListener("keydown", async (e) => {
+      if(e.key === "Enter"){
+        e.preventDefault();
+        try{
+          const raw = fTagInput.value;
+          const t = normTag(raw);
+          if(!t) return;
+
+          addTagToForm(t);
+          fTagInput.value = "";
+
+          await upsertTagToDB(t);
+
+          setAdminStatus("タグを登録しました（以降も候補に出ます）", "ok");
+          setTimeout(() => setAdminStatus("", null), 900);
+        }catch(err){
+          setAdminStatus(err?.message || String(err || ""), "err");
+        }
+      }
+    });
+
+    selectedTagsEl.addEventListener("click", (e) => {
+      const chip = e.target.closest(".tagPickChip.on");
+      if(!chip) return;
+      if(draggingTagEl) return;
+
+      const enc = chip.getAttribute("data-tagval") || "";
+      const tag = decodeURIComponent(enc || "");
+      removeTagFromForm(tag);
+    });
+
+    selectedTagsEl.addEventListener("dragstart", (e) => {
+      const chip = e.target.closest(".tagPickChip.on");
+      if(!chip) return;
+      draggingTagEl = chip;
+      chip.classList.add("dragging");
+      try{
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", chip.getAttribute("data-tagval") || "");
+      }catch(_){}
+    });
+
+    selectedTagsEl.addEventListener("dragover", (e) => {
+      if(!draggingTagEl) return;
+      e.preventDefault();
+
+      const over = e.target.closest(".tagPickChip.on");
+      if(!over || over === draggingTagEl) return;
+
+      const rect = over.getBoundingClientRect();
+      const before = (e.clientX - rect.left) < rect.width / 2;
+      selectedTagsEl.insertBefore(draggingTagEl, before ? over : over.nextSibling);
+    });
+
+    selectedTagsEl.addEventListener("drop", (e) => {
+      if(!draggingTagEl) return;
+      e.preventDefault();
+
+      const ordered = [...selectedTagsEl.querySelectorAll(".tagPickChip.on")]
+        .map(el => decodeURIComponent(el.getAttribute("data-tagval") || ""))
+        .map(normTag)
+        .filter(Boolean);
+
+      formTags = ordered;
+      renderTagsUI();
+      setAdminStatus("タグの順番を更新しました。", "ok");
+      setTimeout(() => setAdminStatus("", null), 700);
+    });
+
+    selectedTagsEl.addEventListener("dragend", () => {
+      if(draggingTagEl){
+        draggingTagEl.classList.remove("dragging");
+      }
+      draggingTagEl = null;
+    });
+
+    tagSuggestionsEl.addEventListener("click", async (e) => {
+      const del = e.target.closest("[data-del]");
+      if(del){
+        const k = del.getAttribute("data-del") || "";
+        e.preventDefault();
+        e.stopPropagation();
+        try{
+          await deleteTagFromDB(k);
+        }catch(err){
+          setAdminStatus(err?.message || String(err || ""), "err");
+        }
+        return;
+      }
+
+      const chip = e.target.closest("[data-tag]");
+      if(!chip) return;
+      const tag = chip.getAttribute("data-tag") || "";
+      toggleTag(tag);
+    });
+
+    // ✅ カード右下「編集」ボタン
+    grid.addEventListener("click", (e) => {
+      if(isSuppressedClick()) return;
+      const btn = e.target.closest("[data-action='editGame']");
+      if(!btn) return;
+      const id = btn.getAttribute("data-id") || "";
+      if(!id) return;
+      e.preventDefault();
+      e.stopPropagation();
+      startEdit(id);
+    });
+
+    /* ============================================================
+       ✅ secondframe：スクロール判定つきで「表示」だけ
+       ============================================================ */
+    grid.addEventListener("pointerdown", (e) => {
+      const sf = e.target.closest(".secondframe[data-action='sf']");
+      if(!sf) return;
+      const slot = e.target.closest(".slot");
+      if(!slot) return;
+
+      if(slot.getAttribute("data-hasprev") !== "1") return;
+
+      SF_CLICK.active = true;
+      SF_CLICK.moved = false;
+      SF_CLICK.startX = e.clientX;
+      SF_CLICK.startY = e.clientY;
+      SF_CLICK.movedDist = 0;
+      SF_CLICK.downTime = Date.now();
+    }, { passive:true });
+
+    grid.addEventListener("pointermove", (e) => {
+      if(!SF_CLICK.active) return;
+      const dx = e.clientX - SF_CLICK.startX;
+      const dy = e.clientY - SF_CLICK.startY;
+      const dist = Math.hypot(dx, dy);
+      SF_CLICK.movedDist = dist;
+      if(dist > 10){
+        SF_CLICK.moved = true;
+      }
+    }, { passive:true });
+
+    grid.addEventListener("pointerup", (e) => {
+      if(!SF_CLICK.active) return;
+      SF_CLICK.active = false;
+
+      const dt = Date.now() - SF_CLICK.downTime;
+      if(SF_CLICK.moved) return;
+      if(dt > 450) return;
+
+      const sf = e.target.closest(".secondframe[data-action='sf']");
+      if(!sf) return;
+      const slot = e.target.closest(".slot");
+      if(!slot) return;
+
+      openSfOverlayForSlot(slot);
+      suppressNextClick(450);
+    }, { passive:true });
+
+    function closeOverlay(ov){
+      if(!ov) return;
+      ov.classList.remove("show");
+      ov.setAttribute("aria-hidden","true");
+      const a = ov.querySelector(".sfImgLink");
+      if(a) a.dataset.allowNav = IS_COARSE ? "0" : "1";
     }
 
-    function boot(){
-      render(); // まずはデフォルトを表示
+    // ✅ プレビュー外（sfInnerの外）クリックで閉じる / ×で閉じる
+    grid.addEventListener("click", (e) => {
+      if(isSuppressedClick()){
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
+      const closeBtn = e.target.closest("[data-action='sfClose']");
+      if(closeBtn){
+        e.preventDefault();
+        e.stopPropagation();
+        const ov = closeBtn.closest(".sfOverlay");
+        closeOverlay(ov);
+        return;
+      }
+
+      const ov = e.target.closest(".sfOverlay.show");
+      if(ov){
+        const a = e.target.closest(".sfImgLink");
+        if(a) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+        closeOverlay(ov);
+        return;
+      }
+    });
+
+    /* ============================================================
+       ✅ タップ端末：2タップ遷移
+       ============================================================ */
+    grid.addEventListener("click", (e) => {
+      const a = e.target.closest(".sfImgLink");
+      if(!a) return;
+
+      const ov = a.closest(".sfOverlay");
+      if(!ov || !ov.classList.contains("show")) return;
+
+      if(IS_COARSE){
+        const allow = a.dataset.allowNav === "1";
+        if(!allow){
+          e.preventDefault();
+          e.stopPropagation();
+          a.dataset.allowNav = "1";
+          suppressNextClick(250);
+          return;
+        }
+        return; // 2回目：遷移OK
+      }
+    });
+
+    grid.addEventListener("touchend", (e) => {
+      if(e.target.closest(".secondframe") || e.target.closest(".sfOverlay.show")){
+        suppressNextClick(450);
+      }
+    }, { passive:true });
+
+    /* ============================================================
+       ✅ secondframeの外クリック or スクロールで、全プレビューを消す
+       ============================================================ */
+    window.addEventListener("pointerdown", (e) => {
+      const anyOpen = !!document.querySelector(".sfOverlay.show");
+      if(!anyOpen) return;
+
+      if(e.target.closest(".sfInner")) return;
+      if(e.target.closest(".secondframe")) return;
+      if(e.target.closest("[data-action='sfClose']")) return;
+      if(e.target.closest(".sfImgLink")) return;
+
+      closeAllSfOverlays();
+    }, { passive:true });
+
+    function closeOnScroll(){
+      if(document.querySelector(".sfOverlay.show")){
+        closeAllSfOverlays();
+      }
+    }
+    window.addEventListener("wheel", closeOnScroll, { passive:true });
+    window.addEventListener("touchmove", closeOnScroll, { passive:true });
+    window.addEventListener("scroll", closeOnScroll, { passive:true });
+
+    // =========================
+    // ✅ Grid drag & drop（常時ON：自分のカードだけ）
+    // =========================
+    grid.addEventListener("dragstart", (e) => {
+      const slot = e.target.closest(".slot");
+      if(!slot) return;
+
+      const isMy = slot.getAttribute("data-my") === "1";
+      const gid = slot.getAttribute("data-gameid") || "";
+      if(!isMy || !gid) return;
+
+      if(slot.querySelector(".sfOverlay.show")) return;
+
+      draggingSlot = slot;
+      slot.classList.add("dragging");
+      dropHint.textContent = "ドラッグで並べ替え中…";
+      dropHint.classList.add("show");
+
+      try{
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", gid);
+      }catch(_){}
+    });
+
+    grid.addEventListener("dragover", (e) => {
+      if(!draggingSlot) return;
+      e.preventDefault();
+
+      const over = e.target.closest(".slot");
+      if(!over || over === draggingSlot) return;
+
+      const isOverMy = over.getAttribute("data-my") === "1";
+      if(!isOverMy) return;
+
+      const rect = over.getBoundingClientRect();
+      const before = (e.clientY - rect.top) < rect.height / 2;
+      grid.insertBefore(draggingSlot, before ? over : over.nextSibling);
+      requestSyncLayout();
+    });
+
+    grid.addEventListener("drop", (e) => {
+      if(!draggingSlot) return;
+      e.preventDefault();
+      persistMyOrderFromGrid();
+      requestSyncLayout();
+    });
+
+    grid.addEventListener("dragend", () => {
+      if(draggingSlot){
+        draggingSlot.classList.remove("dragging");
+      }
+      draggingSlot = null;
+      setTimeout(() => {
+        if(!draggingSlot) dropHint.classList.remove("show");
+      }, 400);
+      requestSyncLayout();
+    });
+
+    window.addEventListener("resize", () => {
+      clearTimeout(window.__descResizeT);
+      window.__descResizeT = setTimeout(requestSyncLayout, 120);
+    });
+
+    // =========================
+    // ✅ Start (亀ローディング完全削除)
+    // =========================
+    window.addEventListener("load", () => {
+      try{
+        const cached = localStorage.getItem(LS_AUTH_EMAIL) || "";
+        if(cached) authEmail.value = cached;
+      }catch(_){}
+
+      resetFormState();
+      setEditMode(false);
+
+      renderGrid();
+      updateAuthUI();
+
       initFirebase();
 
-      auth.onAuthStateChanged((user)=>{
-        setAuthUI(user);
-        // ログイン状態に関係なく一覧は読める（read許可してる前提）
-        // ただしルールが閉じててもデフォルト表示は残る
-      });
+      requestSyncLayout();
+      setTimeout(requestSyncLayout, 250);
+    });
 
-      startGamesListener();
-    }
+    /*
+      ✅ Realtime Database ルール例（previewImg追加）
 
-    window.addEventListener("DOMContentLoaded", boot);
+      {
+        "rules": {
+          "games": {
+            ".read": true,
+            "$gid": {
+              ".write": "auth != null && ( (!data.exists() && newData.child('createdBy').val() === auth.uid) || (data.exists() && data.child('createdBy').val() === auth.uid) )"
+            }
+          },
+          "userGameOrder": {
+            "$uid": {
+              ".read": "auth != null && auth.uid === $uid",
+              ".write": "auth != null && auth.uid === $uid"
+            }
+          },
+          "tags": {
+            ".read": true,
+            "$tagKey": {
+              ".write": "auth != null"
+            }
+          }
+        }
+      }
+    */
   </script>
 </body>
 </html>
