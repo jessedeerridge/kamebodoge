@@ -1,11 +1,11 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>かめのボドゲ</title>
 
-  <!-- ✅ Firebase (v9 compat) : Auth + Realtime Database だけ使う -->
+  <!-- ✅ Firebase (v9 compat) : Auth + Realtime Database -->
   <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -113,10 +113,6 @@
       color: #7f1d1d;
     }
 
-    /* =========================
-       ✅ 列数固定
-       小さいとき2列 / 中くらい3列 / 大きいとき4列
-       ========================= */
     .grid{
       max-width:1100px;
       margin:0 auto;
@@ -125,10 +121,6 @@
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap:12px;
       align-items:stretch;
-
-      /* ✅ 端末差で順序が崩れないように明示 */
-      grid-auto-flow: row;
-      direction:ltr;
     }
     @media (min-width: 700px){
       .grid{ grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -145,29 +137,11 @@
       box-shadow: var(--shadow);
       overflow:hidden;
       min-width:0;
-
       height:100%;
       display:flex;
       flex-direction:column;
     }
 
-    /* ✅ 並べ替え中の見た目（自分のカードのみ） */
-    .slot[data-my="1"]{ touch-action: pan-y; }
-    .grid.reorder .slot[data-my="1"]{ cursor: grab; }
-    .grid.reorder .slot[data-my="1"]:active{ cursor: grabbing; }
-    .grid.reorder .slot[data-my="1"]{
-      outline: 2px dashed rgba(37,99,235,.25);
-      outline-offset: 6px;
-      border-radius: 18px;
-    }
-    .grid.reorder .slot.dragging{
-      opacity:.55;
-      outline-color: rgba(37,99,235,.55);
-    }
-
-    /* ==========================================================
-       ✅ secondframe（0.8サイズの黒枠） ※現在は非表示仕様
-       ========================================================== */
     .secondframe{
       position:absolute;
       inset:0;
@@ -192,28 +166,6 @@
       opacity: 0;
     }
 
-    .secondframeLabel{
-      position:absolute;
-      right:14px;
-      bottom:14px;
-      z-index:5;
-      font-size:11px;
-      font-weight:900;
-      letter-spacing:.08em;
-      color: rgba(17,24,39,.55);
-      background: rgba(255,255,255,.70);
-      border:1px solid rgba(0,0,0,.10);
-      border-radius:999px;
-      padding:5px 8px;
-      pointer-events:none;
-      user-select:none;
-      display:none;
-    }
-    .slot[data-hasprev="1"] .secondframeLabel{ display:block; }
-
-    /* ==========================================================
-       ✅ secondframe 内側に出すプレビュー
-       ========================================================== */
     .sfOverlay{
       position:absolute;
       inset:0;
@@ -280,7 +232,6 @@
       gap:10px;
       padding:12px;
       min-width:0;
-
       flex:1 1 auto;
       position:relative;
       z-index:3;
@@ -426,6 +377,18 @@
     }
     .cardEditBtn:active{ transform: translateY(1px); }
 
+    .grid.reorder .slot[data-my="1"]{ cursor: grab; }
+    .grid.reorder .slot[data-my="1"]:active{ cursor: grabbing; }
+    .grid.reorder .slot[data-my="1"]{
+      outline: 2px dashed rgba(37,99,235,.25);
+      outline-offset: 6px;
+      border-radius: 18px;
+    }
+    .grid.reorder .slot.dragging{
+      opacity:.55;
+      outline-color: rgba(37,99,235,.55);
+    }
+
     .dropHint{
       position: fixed;
       left: 50%;
@@ -461,7 +424,6 @@
       border-radius:8px;
     }
 
-    /* ====== Admin panel ====== */
     .admin{
       max-width:1100px;
       margin:0 auto;
@@ -720,11 +682,6 @@
     }
 
     .hidden{ display:none !important; }
-
-    /* ★スクロールバーを非表示（スクロールは可能） */
-    *{ scrollbar-width: none; }
-    *{ -ms-overflow-style: none; }
-    *::-webkit-scrollbar{ width:0; height:0; }
   </style>
 </head>
 
@@ -874,7 +831,8 @@
       ※ secondframeでプレビュー表示（枠の内側のみ）。<br/>
       ※ プレビュー外クリック/スクロールで閉じます。<br/>
       ※ プレビュー表示中は並べ替えできません。<br/>
-      ※ 並べ替えの保存は「見た目の順（上→下、左→右）」で統一し、PC/スマホで逆転しないようにしています。
+      ※ プレビュー画像は <code>1クリック</code> でリンクへ移動します（PC/スマホ共通）。<br/>
+      ※ 表示順は <code>games/{gid}/orderIndex</code> に保存されるため、キャッシュ/ログイン状態に関わらず端末間で一致します。
     </div>
   </main>
 
@@ -943,11 +901,9 @@
     const TOTAL_SLOTS = 20;
 
     // =========================
-    // ✅ localStorage keys
+    // ✅ localStorage keys（認証メールだけ保持）
     // =========================
-    const LS_AUTH_EMAIL   = "kame_bodoge_auth_email";
-    const LS_LAST_UID     = "kame_bodoge_last_uid";
-    const LS_ORDER_CACHE  = "kame_bodoge_order_cache";
+    const LS_AUTH_EMAIL = "kame_bodoge_auth_email";
 
     // =========================
     // ✅ DOM
@@ -1018,24 +974,6 @@
     let db = null;
     let gamesRef = null;
 
-    // ✅ 並び替え
-    let orderRef = null;
-    let myOrderMap = {};
-    let orderUid = null;
-
-    // ✅ ローカルキャッシュ
-    let cachedUid = "";
-    let cachedOrderMap = {};
-    try{
-      cachedUid = localStorage.getItem(LS_LAST_UID) || "";
-      const raw = localStorage.getItem(LS_ORDER_CACHE) || "{}";
-      cachedOrderMap = JSON.parse(raw);
-      if(!cachedOrderMap || typeof cachedOrderMap !== "object") cachedOrderMap = {};
-    }catch(_){
-      cachedUid = "";
-      cachedOrderMap = {};
-    }
-
     // ✅ タグ辞書
     let tagsRef = null;
     let dbTags = [];
@@ -1052,6 +990,12 @@
     let editingId = null;
     let editingOriginal = null;
 
+    // ✅ プレビューで並べ替え
+    let draggingSlot = null;
+
+    // ✅ 選択中タグの並べ替え
+    let draggingTagEl = null;
+
     // ✅ secondframe クリック vs スクロール判定用
     const SF_CLICK = { active:false, moved:false, startX:0, startY:0, movedDist:0, downTime:0 };
     const SF_MOVE_PX = 10;
@@ -1064,20 +1008,6 @@
     }
     function isSuppressedClick(){
       return Date.now() < _suppressClickUntil;
-    }
-
-    function cacheOrderToLocal(uid, orderMap){
-      try{
-        if(uid) localStorage.setItem(LS_LAST_UID, uid);
-        localStorage.setItem(LS_ORDER_CACHE, JSON.stringify(orderMap || {}));
-      }catch(_){}
-      cachedUid = uid || cachedUid || "";
-      cachedOrderMap = (orderMap && typeof orderMap === "object") ? orderMap : (cachedOrderMap || {});
-    }
-
-    function getOrderContext(){
-      if(currentUser) return { uid: currentUser.uid, orderMap: myOrderMap || {} };
-      return { uid: cachedUid || "", orderMap: cachedOrderMap || {} };
     }
 
     // =========================
@@ -1498,24 +1428,11 @@
 
         auth.onAuthStateChanged((user) => {
           currentUser = user || null;
-
-          // ✅ ログイン直後はキャッシュ順を先に適用（逆転防止）
-          if(currentUser && cachedUid && currentUser.uid === cachedUid && cachedOrderMap && typeof cachedOrderMap === "object"){
-            myOrderMap = cachedOrderMap;
-          }
-
           exitEditMode();
           updateAuthUI();
 
           startDbListener();
           startTagsListener();
-
-          if(currentUser){
-            cacheOrderToLocal(currentUser.uid, myOrderMap || {});
-            startOrderListener(currentUser.uid);
-          }else{
-            stopOrderListener();
-          }
 
           renderGrid();
           renderTagsUI();
@@ -1556,9 +1473,11 @@
             players: players ? {min: players.min, max: players.max} : null,
             timeMin: Number(v.timeMin ?? 0) || 0,
             tags,
-            createdAt: v.createdAt || 0,
+            createdAt: Number(v.createdAt ?? 0) || 0,
             createdBy: v.createdBy || "",
-            createdByEmail: v.createdByEmail || ""
+            createdByEmail: v.createdByEmail || "",
+            // ✅ これが「端末差ゼロの並び順」本体（ログアウトでも読める）
+            orderIndex: Number(v.orderIndex ?? 0) || 0
           });
         });
 
@@ -1610,32 +1529,6 @@
         dbTagsMap = {};
         renderTagsUI();
       });
-    }
-
-    function startOrderListener(uid){
-      if(orderUid === uid && orderRef) return;
-
-      stopOrderListener();
-      orderUid = uid;
-      orderRef = db.ref("userGameOrder").child(uid);
-
-      orderRef.on("value", (snap) => {
-        myOrderMap = snap.val() || {};
-        cacheOrderToLocal(uid, myOrderMap);
-        renderGrid();
-      }, (err) => {
-        myOrderMap = {};
-        renderGrid();
-      });
-    }
-
-    function stopOrderListener(){
-      try{
-        if(orderRef) orderRef.off();
-      }catch(_){}
-      orderRef = null;
-      orderUid = null;
-      myOrderMap = {};
     }
 
     // =========================
@@ -1748,8 +1641,10 @@
       exitEditMode();
     }
 
-    function getNextMyOrder(){
-      const vals = Object.values(myOrderMap || {}).map(v => Number(v)).filter(v => Number.isFinite(v) && v > 0);
+    function getNextOrderIndexForUid(uid){
+      // ✅ DB内の「同じcreatedByの最大orderIndex+1」を採用（端末差なし）
+      const mine = dbGames.filter(g => g && g.createdBy === uid);
+      const vals = mine.map(g => Number(g.orderIndex||0)).filter(n => Number.isFinite(n) && n > 0);
       const max = vals.length ? Math.max(...vals) : 0;
       return max + 1;
     }
@@ -1801,6 +1696,8 @@
         setAdminStatus("保存中...", null);
 
         const newRef = db.ref("games").push();
+        const nextOrder = getNextOrderIndexForUid(currentUser.uid);
+
         const payload = {
           name,
           desc,
@@ -1810,6 +1707,8 @@
           players: { min: formMinPlayers, max: formMaxPlayers },
           timeMin: formTimeMin,
           tags,
+          // ✅ 端末差ゼロの並び順をゲーム自体に持たせる
+          orderIndex: nextOrder,
           createdAt: firebase.database.ServerValue.TIMESTAMP,
           createdBy: currentUser.uid,
           createdByEmail: currentUser.email || ""
@@ -1817,11 +1716,6 @@
 
         await newRef.set(payload);
         await upsertTagsToDB(tags);
-
-        if(orderRef){
-          const nextOrder = getNextMyOrder();
-          await orderRef.child(newRef.key).set(nextOrder);
-        }
 
         setAdminStatus("追加しました！", "ok");
         clearForm();
@@ -1886,6 +1780,7 @@
           players: { min: formMinPlayers, max: formMaxPlayers },
           timeMin: formTimeMin,
           tags,
+          // ✅ orderIndexは編集では触らない（並び順はドラッグ保存でのみ変更）
           updatedAt: firebase.database.ServerValue.TIMESTAMP,
           updatedBy: currentUser.uid,
           updatedByEmail: currentUser.email || ""
@@ -1946,47 +1841,87 @@
     }
 
     // =========================
-    // ✅ Grid 表示（決定的順序）
+    // ✅ 【重要】端末差ゼロの「安定ソート」
+    // - キャッシュ/ログイン状態に依存しない
+    // - “メイン所有者(primary owner)”をDBから決定して、常に同じ順で先頭に出す
     // =========================
-    function getMyOrderedGameIds(uid, orderMap){
-      if(!uid) return [];
-      const mine = dbGames.filter(g => g && g.createdBy === uid);
+    function stableStr(s){ return String(s||""); }
+    function stableIdTie(a,b){
+      const A = stableStr(a?.id);
+      const B = stableStr(b?.id);
+      if(A < B) return -1;
+      if(A > B) return 1;
+      return 0;
+    }
 
-      const withOrder = [];
-      const withoutOrder = [];
-      for(const g of mine){
-        const ord = Number(orderMap?.[g.id]);
-        if(Number.isFinite(ord) && ord > 0) withOrder.push([ord, g.id]);
-        else withoutOrder.push(g);
+    function getPrimaryOwnerUid(){
+      // ✅ createdByごとの件数で決定（最大件数 / 同率なら文字列で決定）→ 端末差ゼロ
+      const cnt = new Map();
+      for(const g of dbGames){
+        const u = stableStr(g?.createdBy);
+        if(!u) continue;
+        cnt.set(u, (cnt.get(u)||0) + 1);
       }
-      withOrder.sort((a,b) => a[0]-b[0]);
-      withoutOrder.sort((a,b) => (b.createdAt||0)-(a.createdAt||0));
+      let bestUid = "";
+      let bestN = 0;
+      for(const [u,n] of cnt.entries()){
+        if(n > bestN){
+          bestN = n;
+          bestUid = u;
+        }else if(n === bestN && n > 0){
+          // tie-breaker（決定的）
+          if(bestUid === "" || u < bestUid) bestUid = u;
+        }
+      }
+      return bestUid;
+    }
 
-      return [...withOrder.map(x=>x[1]), ...withoutOrder.map(x=>x.id)];
+    function sortByOrderIndexAscThenFallback(a,b){
+      // ✅ orderIndex（>0）を最優先。未設定は後ろへ。fallbackは createdAt(desc) + id
+      const ao = Number(a?.orderIndex||0);
+      const bo = Number(b?.orderIndex||0);
+      const aHas = Number.isFinite(ao) && ao > 0;
+      const bHas = Number.isFinite(bo) && bo > 0;
+
+      if(aHas && bHas){
+        if(ao !== bo) return ao - bo;
+        // 同じなら安定
+        const at = Number(a?.createdAt||0);
+        const bt = Number(b?.createdAt||0);
+        if(at !== bt) return bt - at;
+        return stableIdTie(a,b);
+      }
+      if(aHas && !bHas) return -1;
+      if(!aHas && bHas) return 1;
+
+      // どっちもorderIndex無し
+      const at = Number(a?.createdAt||0);
+      const bt = Number(b?.createdAt||0);
+      if(at !== bt) return bt - at;
+      return stableIdTie(a,b);
+    }
+
+    function sortByCreatedAtDescThenId(a,b){
+      const at = Number(a?.createdAt||0);
+      const bt = Number(b?.createdAt||0);
+      if(at !== bt) return bt - at;
+      return stableIdTie(a,b);
     }
 
     function makeDisplayGames(){
-      const dbSorted = [...dbGames].sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
-      const ctx = getOrderContext();
-      const uid = ctx.uid;
-      const orderMap = ctx.orderMap || {};
+      const primaryUid = getPrimaryOwnerUid();
 
-      if(!uid){
-        return [...seedGames, ...dbSorted];
-      }
+      const all = [...dbGames];
 
-      const myOrderedIds = getMyOrderedGameIds(uid, orderMap);
-      const myIdSet = new Set(myOrderedIds);
+      // メイン所有者のゲームを先頭へ（orderIndexで並べる）
+      const primary = primaryUid ? all.filter(g => g.createdBy === primaryUid) : [];
+      primary.sort(sortByOrderIndexAscThenFallback);
 
-      const mineOrdered = [];
-      for(const id of myOrderedIds){
-        const g = dbGames.find(x => x.id === id);
-        if(g) mineOrdered.push(g);
-      }
+      // その他（createdAt desc）
+      const rest = primaryUid ? all.filter(g => g.createdBy !== primaryUid) : all;
+      rest.sort(sortByCreatedAtDescThenId);
 
-      const others = dbSorted.filter(g => !myIdSet.has(g.id));
-
-      return [...seedGames, ...mineOrdered, ...others];
+      return [...seedGames, ...primary, ...rest];
     }
 
     function renderGrid(){
@@ -2010,71 +1945,70 @@
     }
 
     // =========================
-    // ✅ ここが新方式：保存も挿入判定も「見た目順（上→下、左→右）」で統一
+    // ✅ 並べ替え保存（games/{gid}/orderIndex を更新）
+    // - userGameOrder は使わない（キャッシュ依存を完全排除）
     // =========================
-    function getVisualMySlots(){
-      const els = [...grid.querySelectorAll(".slot[data-my='1']")]
-        .filter(el => (el.getAttribute("data-gameid") || "").trim() !== "");
-
-      const items = els.map(el => ({ el, r: el.getBoundingClientRect() }));
-
-      // ✅ row-bucket：端末差の微妙なズレを吸収（10px単位）
-      const bucket = (v) => Math.round(v / 10) * 10;
-
-      items.sort((a,b) => {
-        const ay = bucket(a.r.top);
-        const by = bucket(b.r.top);
-        if(ay !== by) return ay - by;
-        return a.r.left - b.r.left;
-      });
-
-      return items.map(x => x.el);
+    function getMySlotsInDom(){
+      return [...grid.querySelectorAll(".slot[data-my='1']")];
     }
 
-    function persistMyOrderFromVisual(){
-      if(!currentUser || !orderRef) return;
+    function persistMyOrderToGames(){
+      if(!currentUser || !db) return;
 
-      const visual = getVisualMySlots();
-      const ids = visual
+      const primaryUid = getPrimaryOwnerUid();
+      // ✅ “メイン所有者”の並び順だけ固定したい想定（ログアウトでも同じ先頭順にするため）
+      if(primaryUid && currentUser.uid !== primaryUid){
+        toast("この端末のログインユーザーはメイン所有者ではありません", 1400);
+        return;
+      }
+
+      const els = getMySlotsInDom();
+      const ids = els
         .map(el => el.getAttribute("data-gameid") || "")
-        .map(s => s.trim())
         .filter(Boolean);
 
       const updates = {};
-      ids.forEach((id, idx) => updates[id] = idx + 1);
+      ids.forEach((id, idx) => {
+        updates[`games/${id}/orderIndex`] = idx + 1;
+      });
 
+      // ✅ 自分のゲームにだけ適用（安全）
+      // 余計なゲームに触らない（DOMに出てる自分のカードだけ）
       toast("順番を保存中...");
-      orderRef.update(updates).then(() => {
+      db.ref().update(updates).then(() => {
         toast("順番を保存しました ✅");
       }).catch(err => {
         toast("保存に失敗: " + (err?.message || err), 1400);
       });
     }
 
-    function getInsertBeforeFromPointer(x, y){
-      const bucket = (v) => Math.round(v / 10) * 10;
-      const ordered = getVisualMySlots().filter(el => el !== draggingSlot);
+    // =========================
+    // ✅ Grid drag & drop（グリッド対応の挿入判定で端末差を防ぐ）
+    // =========================
+    function getGridAfterElement(mySlots, x, y){
+      const candidates = mySlots.filter(el => el !== draggingSlot);
+      let best = null;
+      let bestScore = Infinity;
+      const BIG = 10000;
 
-      for(const el of ordered){
+      for(const el of candidates){
         const r = el.getBoundingClientRect();
-        const midY = r.top + r.height / 2;
-        const midX = r.left + r.width / 2;
+        const cx = r.left + r.width/2;
+        const cy = r.top  + r.height/2;
 
-        const py = bucket(y);
-        const ey = bucket(midY);
+        const dy = cy - y;
+        const dx = cx - x;
 
-        // ✅ “見た目の読み順”で「この要素より前か？」を判定
-        if(py < ey) return el;
-        if(py === ey && x < midX) return el;
+        const rowMajor = dy * BIG + dx;
+
+        if(rowMajor >= 0){
+          if(rowMajor < bestScore){
+            bestScore = rowMajor;
+            best = el;
+          }
+        }
       }
-      return null; // 最後へ
-    }
-
-    function getMyGroupAnchorForAppend(){
-      // ✅ 「自分カード群の最後の次」に入れる（他人/空枠の前に固定）
-      const visual = getVisualMySlots();
-      const last = visual[visual.length - 1] || null;
-      return last ? last.nextSibling : null;
+      return best; // nullなら末尾へ
     }
 
     // =========================
@@ -2194,9 +2128,6 @@
       }
     });
 
-    // ✅ 選択中タグ click/drag は元仕様のまま
-    let draggingTagEl = null;
-
     selectedTagsEl.addEventListener("click", (e) => {
       const chip = e.target.closest(".tagPickChip.on");
       if(!chip) return;
@@ -2272,7 +2203,6 @@
       toggleTag(tag);
     });
 
-    // ✅ カード右下「編集」ボタン
     grid.addEventListener("click", (e) => {
       const btn = e.target.closest("[data-action='editGame']");
       if(!btn) return;
@@ -2283,9 +2213,9 @@
       startEdit(id);
     });
 
-    /* ============================================================
-       ✅ secondframe：スクロール判定つきで「表示」だけ
-       ============================================================ */
+    // =========================
+    // ✅ secondframe：スクロール判定つきで「表示」だけ
+    // =========================
     grid.addEventListener("pointerdown", (e) => {
       const sf = e.target.closest(".secondframe[data-action='sf']");
       if(!sf) return;
@@ -2336,7 +2266,6 @@
       ov.setAttribute("aria-hidden","true");
     }
 
-    // ✅ プレビュー外（sfInnerの外）クリックで閉じる / ×で閉じる
     grid.addEventListener("click", (e) => {
       const isLink = !!e.target.closest(".sfImgLink");
 
@@ -2387,16 +2316,14 @@
     window.addEventListener("scroll", closeOnScroll, { passive:true });
 
     // =========================
-    // ✅ Grid drag & drop（新方式：挿入判定も保存も見た目順）
+    // ✅ Drag & Drop（自分のカードのみ）
     // =========================
-    let draggingSlot = null;
-
     grid.addEventListener("dragstart", (e) => {
       const slot = e.target.closest(".slot");
       if(!slot) return;
 
       const isMy = slot.getAttribute("data-my") === "1";
-      const gid = (slot.getAttribute("data-gameid") || "").trim();
+      const gid = slot.getAttribute("data-gameid") || "";
       if(!isMy || !gid) return;
 
       if(slot.querySelector(".sfOverlay.show")) return;
@@ -2416,24 +2343,24 @@
       if(!draggingSlot) return;
       e.preventDefault();
 
-      // ✅ プレビュー表示中は並べ替え不可
-      if(document.querySelector(".sfOverlay.show")) return;
-
       const over = e.target.closest(".slot");
       if(!over) return;
 
-      // ✅ 自分のカード内だけで移動
       if(over.getAttribute("data-my") !== "1") return;
 
-      const beforeEl = getInsertBeforeFromPointer(e.clientX, e.clientY);
+      const mySlots = getMySlotsInDom();
+      if(!mySlots.length) return;
 
-      if(beforeEl){
-        if(beforeEl !== draggingSlot){
-          grid.insertBefore(draggingSlot, beforeEl);
+      const after = getGridAfterElement(mySlots, e.clientX, e.clientY);
+
+      if(after){
+        if(after !== draggingSlot){
+          grid.insertBefore(draggingSlot, after);
           requestSyncLayout();
         }
       }else{
-        const anchor = getMyGroupAnchorForAppend();
+        const lastMy = [...getMySlotsInDom()].filter(el => el !== draggingSlot).slice(-1)[0] || null;
+        const anchor = lastMy ? lastMy.nextSibling : null;
         grid.insertBefore(draggingSlot, anchor);
         requestSyncLayout();
       }
@@ -2442,9 +2369,7 @@
     grid.addEventListener("drop", (e) => {
       if(!draggingSlot) return;
       e.preventDefault();
-
-      // ✅ 保存はDOM順ではなく「見た目順」で必ず統一
-      persistMyOrderFromVisual();
+      persistMyOrderToGames();
       requestSyncLayout();
     });
 
@@ -2465,7 +2390,7 @@
     });
 
     // =========================
-    // ✅ Start (亀ローディング完全削除)
+    // ✅ Start
     // =========================
     window.addEventListener("load", () => {
       try{
@@ -2486,7 +2411,10 @@
     });
 
     /*
-      ✅ Realtime Database ルール例（previewImg追加）
+      ✅ Realtime Database ルール例（orderIndex を games 内に保存する版）
+      - userGameOrder は不要（完全廃止）
+      - games は read:true のまま、ownerだけ write できる
+      - tags は read:true、write はログイン必須
 
       {
         "rules": {
@@ -2494,12 +2422,6 @@
             ".read": true,
             "$gid": {
               ".write": "auth != null && ( (!data.exists() && newData.child('createdBy').val() === auth.uid) || (data.exists() && data.child('createdBy').val() === auth.uid) )"
-            }
-          },
-          "userGameOrder": {
-            "$uid": {
-              ".read": "auth != null && auth.uid === $uid",
-              ".write": "auth != null && auth.uid === $uid"
             }
           },
           "tags": {
