@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
@@ -40,11 +40,14 @@
       border-bottom:1px solid var(--line);
     }
     .wrap{max-width:1100px; margin:0 auto; padding:5px 16px;}
-    .bar{display:flex; align-items:center; justify-content:space-between; gap:12px;}
+    .bar{
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+    }
     .brand{
       display:flex; align-items:center; gap:10px;
       font-weight:900; letter-spacing:.02em;
-      font-size:18px; min-width:0;
+      font-size:18px;
+      min-width:0;
     }
     .turtle{
       width:34px; height:34px; border-radius:12px;
@@ -52,11 +55,15 @@
       border:1px solid rgba(0,0,0,.10);
       box-shadow: var(--shadow);
       display:grid; place-items:center;
-      user-select:none; flex:0 0 auto;
+      user-select:none;
+      flex:0 0 auto;
     }
     .turtle span{font-size:18px; transform: translateY(-1px);}
 
-    .authArea{display:flex; align-items:center; gap:10px; flex:0 0 auto;}
+    .authArea{
+      display:flex; align-items:center; gap:10px;
+      flex:0 0 auto;
+    }
     .userPill{
       display:flex; align-items:center; gap:10px;
       padding:8px 10px;
@@ -69,7 +76,9 @@
     .userEmail{
       font-size:12px;
       color: rgba(17,24,39,.78);
-      overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
       max-width: 34vw;
     }
 
@@ -93,7 +102,10 @@
       background: linear-gradient(135deg, rgba(37,99,235,.14), rgba(99,102,241,.12));
       border-color: rgba(37,99,235,.25);
     }
-    .btn.ghost{ background: transparent; box-shadow:none; }
+    .btn.ghost{
+      background: transparent;
+      box-shadow: none;
+    }
     .btn.small{ padding:7px 10px; border-radius: 10px; font-size:12px; }
     .btn.danger{
       background: rgba(185, 28, 28, .07);
@@ -101,7 +113,10 @@
       color: #7f1d1d;
     }
 
-    /* ✅ 列数固定 */
+    /* =========================
+       ✅ 列数固定
+       小さいとき2列 / 中くらい3列 / 大きいとき4列
+       ========================= */
     .grid{
       max-width:1100px;
       margin:0 auto;
@@ -110,6 +125,10 @@
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap:12px;
       align-items:stretch;
+
+      /* ✅ 端末差で順序が崩れないように明示 */
+      grid-auto-flow: row;
+      direction:ltr;
     }
     @media (min-width: 700px){
       .grid{ grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -130,10 +149,25 @@
       height:100%;
       display:flex;
       flex-direction:column;
-      touch-action: pan-y;
     }
 
-    /* ✅ secondframe */
+    /* ✅ 並べ替え中の見た目（自分のカードのみ） */
+    .slot[data-my="1"]{ touch-action: pan-y; }
+    .grid.reorder .slot[data-my="1"]{ cursor: grab; }
+    .grid.reorder .slot[data-my="1"]:active{ cursor: grabbing; }
+    .grid.reorder .slot[data-my="1"]{
+      outline: 2px dashed rgba(37,99,235,.25);
+      outline-offset: 6px;
+      border-radius: 18px;
+    }
+    .grid.reorder .slot.dragging{
+      opacity:.55;
+      outline-color: rgba(37,99,235,.55);
+    }
+
+    /* ==========================================================
+       ✅ secondframe（0.8サイズの黒枠） ※現在は非表示仕様
+       ========================================================== */
     .secondframe{
       position:absolute;
       inset:0;
@@ -141,7 +175,7 @@
       pointer-events:auto;
       display:grid;
       place-items:center;
-      cursor:pointer;
+      cursor: pointer;
       -webkit-tap-highlight-color: transparent;
       touch-action: pan-y;
     }
@@ -158,7 +192,28 @@
       opacity: 0;
     }
 
-    /* ✅ secondframe 内側プレビュー */
+    .secondframeLabel{
+      position:absolute;
+      right:14px;
+      bottom:14px;
+      z-index:5;
+      font-size:11px;
+      font-weight:900;
+      letter-spacing:.08em;
+      color: rgba(17,24,39,.55);
+      background: rgba(255,255,255,.70);
+      border:1px solid rgba(0,0,0,.10);
+      border-radius:999px;
+      padding:5px 8px;
+      pointer-events:none;
+      user-select:none;
+      display:none;
+    }
+    .slot[data-hasprev="1"] .secondframeLabel{ display:block; }
+
+    /* ==========================================================
+       ✅ secondframe 内側に出すプレビュー
+       ========================================================== */
     .sfOverlay{
       position:absolute;
       inset:0;
@@ -169,6 +224,7 @@
       background: transparent;
     }
     .sfOverlay.show{ display:block; }
+
     .sfInner{
       position:absolute;
       left:50%;
@@ -181,6 +237,7 @@
       background: rgba(0,0,0,.06);
       backdrop-filter: blur(2px);
     }
+
     .sfOverlay .sfImgLink{
       position:absolute;
       inset:0;
@@ -197,6 +254,7 @@
       user-select:none;
       -webkit-user-drag:none;
     }
+
     .sfOverlay .sfClose{
       position:absolute;
       right:10px;
@@ -215,7 +273,6 @@
     }
     .sfOverlay .sfClose:active{ transform: translateY(1px); }
 
-    /* ✅ カード中身 */
     .infoBox{
       width:100%;
       display:flex;
@@ -229,6 +286,7 @@
       z-index:3;
       pointer-events:none;
     }
+
     .topRow{
       display:grid;
       grid-template-columns: 2fr 3fr;
@@ -236,6 +294,7 @@
       align-items:start;
       min-width:0;
     }
+
     .imgCol{ min-width:0; }
     .imgBase{
       width:100%;
@@ -255,22 +314,36 @@
       user-select:none;
       background: transparent;
     }
+    .imgBase .empty{
+      color: rgba(17,24,39,.40);
+      font-weight:900;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+      font-size:12px;
+      user-select:none;
+      padding:14px 0;
+    }
+
     .metaCol{
       min-width:0;
       display:flex;
       flex-direction:column;
       gap:8px;
     }
+
     .gameTitle{
       color:var(--text);
       font-weight:900;
       font-size:15px;
       line-height:1.25;
       white-space:normal;
+      overflow:visible;
+      text-overflow:clip;
       overflow-wrap:anywhere;
       word-break: break-word;
       display:block;
     }
+
     .metaRow{
       display:flex;
       flex-wrap:wrap;
@@ -292,6 +365,7 @@
       white-space:nowrap;
       flex:0 0 auto;
     }
+
     .tagRow{
       display:flex;
       flex-wrap:wrap;
@@ -310,6 +384,7 @@
       line-height:1.1;
       white-space:nowrap;
     }
+
     .descBox{
       padding:10px 12px;
       border-radius: 14px;
@@ -344,7 +419,6 @@
       user-select:none;
       -webkit-tap-highlight-color: transparent;
       touch-action: manipulation;
-      pointer-events:auto;
     }
     .cardEditBtn:hover{
       border-color: rgba(37,99,235,.28);
@@ -388,7 +462,11 @@
     }
 
     /* ====== Admin panel ====== */
-    .admin{max-width:1100px;margin:0 auto;padding:0 16px 18px;}
+    .admin{
+      max-width:1100px;
+      margin:0 auto;
+      padding:0 16px 18px;
+    }
     .adminCard{
       border:1px solid rgba(0,0,0,.10);
       background: rgba(255,255,255,.80);
@@ -401,7 +479,11 @@
       display:flex; align-items:center; justify-content:space-between; gap:10px;
       border-bottom:1px solid rgba(0,0,0,.08);
     }
-    .adminTitle{font-weight:900;letter-spacing:.02em;font-size:14px;}
+    .adminTitle{
+      font-weight:900;
+      letter-spacing:.02em;
+      font-size:14px;
+    }
     .adminBody{
       padding:12px 14px 14px;
       display:grid;
@@ -409,10 +491,16 @@
       gap:10px;
     }
     @media (min-width: 860px){
-      .adminBody{ grid-template-columns: 1.1fr 1.1fr 1.1fr 1.2fr; }
+      .adminBody{
+        grid-template-columns: 1.1fr 1.1fr 1.1fr 1.2fr;
+      }
       .adminBody .wide{ grid-column: 1 / -1; }
     }
-    .field{display:flex;flex-direction:column;gap:6px;min-width:0;}
+
+    .field{
+      display:flex; flex-direction:column; gap:6px;
+      min-width:0;
+    }
     .label{
       font-size:12px;
       color: rgba(17,24,39,.70);
@@ -445,12 +533,28 @@
       border-color: rgba(37,99,235,.35);
       box-shadow: 0 0 0 3px rgba(37,99,235,.12);
     }
-    .textarea{ min-height:78px; resize:vertical; line-height:1.45; }
-    .hint{ font-size:11px; color: rgba(17,24,39,.55); line-height:1.45; }
-    .rowActions{display:flex;gap:10px;align-items:center;justify-content:flex-end;padding-top:6px;flex-wrap:wrap;}
-    .status{font-size:12px;color: rgba(17,24,39,.65);min-height:16px;}
-    .status.err{ color:#b91c1c; }
-    .status.ok{ color:#047857; }
+    .textarea{
+      min-height: 78px;
+      resize: vertical;
+      line-height:1.45;
+    }
+    .hint{
+      font-size:11px;
+      color: rgba(17,24,39,.55);
+      line-height:1.45;
+    }
+    .rowActions{
+      display:flex; gap:10px; align-items:center; justify-content:flex-end;
+      padding-top: 6px;
+      flex-wrap: wrap;
+    }
+    .status{
+      font-size:12px;
+      color: rgba(17,24,39,.65);
+      min-height: 16px;
+    }
+    .status.err{ color: #b91c1c; }
+    .status.ok{ color: #047857; }
 
     .stepper{
       display:flex; align-items:center; gap:8px;
@@ -471,7 +575,9 @@
       overflow:hidden;
       text-overflow:ellipsis;
     }
-    .stepBtns{display:flex;gap:6px;flex:0 0 auto;}
+    .stepBtns{
+      display:flex; gap:6px; flex:0 0 auto;
+    }
     .stepBtn{
       width:34px; height:30px;
       border-radius: 10px;
@@ -487,7 +593,10 @@
     .stepBtn:hover{ background: rgba(0,0,0,.05); border-color: rgba(0,0,0,.18); }
     .stepBtn:active{ transform: translateY(1px); }
 
-    .tagInputRow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+    .tagInputRow{
+      display:flex; gap:8px; align-items:center;
+      flex-wrap:wrap;
+    }
     .tagInputRow .input{ flex:1 1 260px; }
     .tagPills{
       display:flex;
@@ -525,7 +634,11 @@
       outline-offset: 3px;
     }
     .tagPickChip .x{ opacity:.85; font-weight:900; }
-    .tagPickChip .del{ opacity:.9; font-weight:900; color:#b91c1c; }
+    .tagPickChip .del{
+      opacity:.9;
+      font-weight:900;
+      color:#b91c1c;
+    }
 
     .modalOverlay{
       position: fixed;
@@ -596,38 +709,22 @@
     }
     .modalErr.show{ display:block; }
 
-    .hr{ height:1px; background: rgba(0,0,0,.08); margin: 4px 0; }
-    .mutedNote{ font-size:12px; color: rgba(17,24,39,.62); line-height:1.55; }
+    .hr{
+      height:1px; background: rgba(0,0,0,.08);
+      margin: 4px 0;
+    }
+    .mutedNote{
+      font-size:12px;
+      color: rgba(17,24,39,.62);
+      line-height:1.55;
+    }
+
     .hidden{ display:none !important; }
 
-    /* =========================
-       ✅ 並べ替え（Pointer版）
-       ========================= */
-    .slot[data-my="1"]{ cursor: grab; }
-    .slot[data-my="1"].draggingOrigin{ opacity: .25; }
-    .slotPlaceholder{
-      border: 2px dashed rgba(37,99,235,.35);
-      border-radius: var(--radius);
-      background: rgba(37,99,235,.06);
-      min-height: 120px;
-    }
-
-    .dragGhost{
-      position: fixed;
-      z-index: 2000;
-      pointer-events: none;
-      width: 280px;
-      max-width: 78vw;
-      transform: translate(-9999px,-9999px);
-      opacity: .95;
-      filter: drop-shadow(0 18px 45px rgba(0,0,0,.22));
-    }
-    .dragGhost .ghostInner{
-      border-radius: var(--radius);
-      overflow:hidden;
-      border:1px solid rgba(0,0,0,.10);
-      background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.98));
-    }
+    /* ★スクロールバーを非表示（スクロールは可能） */
+    *{ scrollbar-width: none; }
+    *{ -ms-overflow-style: none; }
+    *::-webkit-scrollbar{ width:0; height:0; }
   </style>
 </head>
 
@@ -769,7 +866,7 @@
       </div>
     </section>
 
-    <section class="grid" id="grid"></section>
+    <section class="grid reorder" id="grid"></section>
 
     <div class="dropHint" id="dropHint">ドラッグで並べ替え中…</div>
 
@@ -777,7 +874,7 @@
       ※ secondframeでプレビュー表示（枠の内側のみ）。<br/>
       ※ プレビュー外クリック/スクロールで閉じます。<br/>
       ※ プレビュー表示中は並べ替えできません。<br/>
-      ※ 並べ替えは <code>PC/スマホ共通</code> で Pointer 操作の同一ロジックです（逆転しにくい）。
+      ※ 並べ替えの保存は「見た目の順（上→下、左→右）」で統一し、PC/スマホで逆転しないようにしています。
     </div>
   </main>
 
@@ -824,11 +921,6 @@
     </div>
   </div>
 
-  <!-- ✅ Drag Ghost -->
-  <div class="dragGhost" id="dragGhost" aria-hidden="true">
-    <div class="ghostInner" id="dragGhostInner"></div>
-  </div>
-
   <script>
     // =========================
     // ✅ Firebase Config
@@ -844,16 +936,22 @@
       measurementId: "G-K8NRR8K64Y"
     };
 
+    // =========================
     // ✅ 初期ゲーム（旧分は消さない）
+    // =========================
     const seedGames = [];
     const TOTAL_SLOTS = 20;
 
+    // =========================
     // ✅ localStorage keys
+    // =========================
     const LS_AUTH_EMAIL   = "kame_bodoge_auth_email";
     const LS_LAST_UID     = "kame_bodoge_last_uid";
     const LS_ORDER_CACHE  = "kame_bodoge_order_cache";
 
+    // =========================
     // ✅ DOM
+    // =========================
     const grid = document.getElementById("grid");
     const dropHint = document.getElementById("dropHint");
 
@@ -908,10 +1006,6 @@
     const authErr   = document.getElementById("authErr");
     const authModeNote = document.getElementById("authModeNote");
 
-    // drag ghost
-    const dragGhost = document.getElementById("dragGhost");
-    const dragGhostInner = document.getElementById("dragGhostInner");
-
     // =========================
     // ✅ State
     // =========================
@@ -924,12 +1018,12 @@
     let db = null;
     let gamesRef = null;
 
-    // ✅ 並び替え（DB）
+    // ✅ 並び替え
     let orderRef = null;
     let myOrderMap = {};
     let orderUid = null;
 
-    // ✅ ローカルキャッシュ（未ログイン表示の順番保持）
+    // ✅ ローカルキャッシュ
     let cachedUid = "";
     let cachedOrderMap = {};
     try{
@@ -954,35 +1048,23 @@
     let formTimeMin = 20;
     let formTags = [];
 
-    // ✅ 編集
+    // ✅ 編集モード
     let editingId = null;
     let editingOriginal = null;
 
-    // ✅ secondframe クリック vs スクロール判定
+    // ✅ secondframe クリック vs スクロール判定用
     const SF_CLICK = { active:false, moved:false, startX:0, startY:0, movedDist:0, downTime:0 };
     const SF_MOVE_PX = 10;
     const SF_TIME_MS = 450;
 
-    // ✅ タップ直後の ghost click 対策
+    // ✅ タップ直後の「ghost click」対策
     let _suppressClickUntil = 0;
-    function suppressNextClick(ms=450){ _suppressClickUntil = Date.now() + ms; }
-    function isSuppressedClick(){ return Date.now() < _suppressClickUntil; }
-
-    // ✅ 並べ替え（Pointer版）
-    const REORDER = {
-      active:false,
-      pointerId:null,
-      startX:0, startY:0,
-      x:0, y:0,
-      downTime:0,
-      longPressT:0,
-      moved:false,
-      originEl:null,
-      placeholder:null,
-      offsetX:0, offsetY:0,
-    };
-    const LONG_PRESS_MS = 220;
-    const MOVE_START_PX = 6;
+    function suppressNextClick(ms=450){
+      _suppressClickUntil = Date.now() + ms;
+    }
+    function isSuppressedClick(){
+      return Date.now() < _suppressClickUntil;
+    }
 
     function cacheOrderToLocal(uid, orderMap){
       try{
@@ -1049,7 +1131,9 @@
       return s;
     }
 
-    function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
+    function clamp(n, min, max){
+      return Math.max(min, Math.min(max, n));
+    }
 
     function normTag(s){
       let t = String(s || "").trim();
@@ -1059,6 +1143,7 @@
       t = t.slice(0, 24);
       return t;
     }
+
     function tagKey(tag){
       return String(tag || "")
         .trim()
@@ -1066,10 +1151,12 @@
         .replace(/\s+/g, " ")
         .replace(/[.#$/\[\]]/g, "");
     }
+
     function hasTag(t){
       const key = String(t || "").toLowerCase();
       return formTags.some(x => String(x).toLowerCase() === key);
     }
+
     function addTagToForm(t){
       const tag = normTag(t);
       if(!tag) return;
@@ -1077,11 +1164,13 @@
       formTags.push(tag);
       renderTagsUI();
     }
+
     function removeTagFromForm(t){
       const key = String(t || "").toLowerCase();
       formTags = formTags.filter(x => String(x).toLowerCase() !== key);
       renderTagsUI();
     }
+
     function toggleTag(t){
       const tag = normTag(t);
       if(!tag) return;
@@ -1147,17 +1236,20 @@
         : `<span style="opacity:.55;font-size:12px;">（まだタグがありません）</span>`;
     }
 
-    // ✅ 高さ揃え（おまけ）
     function syncDescHeights(){
+      if(!grid) return;
       const boxes = [...grid.querySelectorAll(".descBox")];
       if(!boxes.length) return;
+
       for(const b of boxes) b.style.minHeight = "0px";
+
       const groups = new Map();
       for(const b of boxes){
         const top = Math.round(b.getBoundingClientRect().top);
         if(!groups.has(top)) groups.set(top, []);
         groups.get(top).push(b);
       }
+
       for(const arr of groups.values()){
         let maxH = 0;
         for(const b of arr) maxH = Math.max(maxH, b.scrollHeight);
@@ -1166,15 +1258,19 @@
     }
 
     function syncSlotHeights(){
+      if(!grid) return;
       const slots = [...grid.querySelectorAll(".slot")];
       if(!slots.length) return;
+
       for(const s of slots) s.style.minHeight = "0px";
+
       const groups = new Map();
       for(const s of slots){
         const top = Math.round(s.getBoundingClientRect().top);
         if(!groups.has(top)) groups.set(top, []);
         groups.get(top).push(s);
       }
+
       for(const arr of groups.values()){
         let maxH = 0;
         for(const s of arr) maxH = Math.max(maxH, s.offsetHeight);
@@ -1182,22 +1278,15 @@
       }
     }
 
+    function syncAllHeights(){
+      syncDescHeights();
+      syncSlotHeights();
+    }
+
     let _syncT = 0;
     function requestSyncLayout(){
       cancelAnimationFrame(_syncT);
-      _syncT = requestAnimationFrame(() => {
-        syncDescHeights();
-        syncSlotHeights();
-      });
-    }
-
-    function toast(text, ms=900){
-      dropHint.textContent = text;
-      dropHint.classList.add("show");
-      clearTimeout(toast._t);
-      toast._t = setTimeout(() => {
-        if(!REORDER.active) dropHint.classList.remove("show");
-      }, ms);
+      _syncT = requestAnimationFrame(() => syncAllHeights());
     }
 
     // =========================
@@ -1210,13 +1299,16 @@
         ov.setAttribute("aria-hidden","true");
       }
     }
+
     function openSfOverlayForSlot(slotEl){
       if(!slotEl) return;
       const hasPrev = slotEl.getAttribute("data-hasprev")==="1";
       if(!hasPrev) return;
+
       closeAllSfOverlays();
       const ov = slotEl.querySelector(".sfOverlay");
       if(!ov) return;
+
       ov.classList.add("show");
       ov.setAttribute("aria-hidden","false");
     }
@@ -1261,24 +1353,32 @@
         : "";
 
       const imgHTML = (hasGame && img)
-        ? `<div class="imgBase" aria-hidden="true">
-             <img class="previewImg" src="${escapeHtml(img)}" alt="">
-           </div>`
-        : `<div class="imgBase" aria-hidden="true"><div class="empty"></div></div>`;
+        ? `
+          <div class="imgBase" aria-hidden="true">
+            <img class="previewImg" src="${escapeHtml(img)}" alt="">
+          </div>
+        `
+        : `
+          <div class="imgBase" aria-hidden="true">
+            <div class="empty"></div>
+          </div>
+        `;
 
       const hasPrev = !!(hasGame && previewImg);
       const prevLink = (hasPrev && hasGame)
-        ? `<a class="sfImgLink" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">
-             <img src="${escapeHtml(previewImg)}" alt="">
-           </a>`
+        ? `
+          <a class="sfImgLink" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">
+            <img src="${escapeHtml(previewImg)}" alt="">
+          </a>
+        `
         : "";
 
       return `
-        <article class="slot"
-          aria-label="slot-${index+1}"
+        <article class="slot" aria-label="slot-${index+1}"
           data-gameid="${escapeHtml(id || "")}"
           data-my="${isMyGame ? "1":"0"}"
-          data-hasprev="${hasPrev ? "1":"0"}">
+          data-hasprev="${hasPrev ? "1":"0"}"
+          draggable="${(currentUser && isMyGame && id) ? "true" : "false"}">
 
           <div class="secondframe" data-action="sf" aria-label="secondframe"></div>
 
@@ -1291,14 +1391,19 @@
 
           <div class="infoBox">
             <div class="topRow">
-              <div class="imgCol">${imgHTML}</div>
+              <div class="imgCol">
+                ${imgHTML}
+              </div>
               <div class="metaCol">
                 ${title}
                 ${metaRow}
                 ${tagRow}
               </div>
             </div>
-            <div class="descBox">${description}</div>
+
+            <div class="descBox">
+              ${description}
+            </div>
           </div>
 
           ${editBtn}
@@ -1308,6 +1413,7 @@
 
     function updateAuthUI(){
       const signedIn = !!currentUser;
+
       btnLogin.classList.toggle("hidden", signedIn);
       userPill.classList.toggle("hidden", !signedIn);
       adminPanel.classList.toggle("hidden", !signedIn);
@@ -1338,12 +1444,22 @@
       setAdminStatus("", null);
     }
 
+    function toast(text, ms=900){
+      dropHint.textContent = text;
+      dropHint.classList.add("show");
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => {
+        if(!draggingSlot) dropHint.classList.remove("show");
+      }, ms);
+    }
+
     // =========================
     // ✅ Firebase init & listeners
     // =========================
     function friendlyAuthError(e){
       const code = e?.code || "";
       const msg  = e?.message || String(e || "");
+
       if(code === "auth/invalid-email") return "メールアドレスの形式が正しくありません。";
       if(code === "auth/missing-password") return "パスワードを入力してください。";
       if(code === "auth/weak-password") return "パスワードが弱いです（6文字以上にしてください）。";
@@ -1359,15 +1475,18 @@
       const extra = (protocol === "file:" || origin === "null")
         ? "\n\n※ file:// で開いている場合、ブラウザ設定によっては外部通信が制限されることがあります。"
         : "";
+
       return `ログインに失敗しました。\n${code ? `[${code}] ` : ""}${msg}${extra}`;
     }
 
     async function initFirebase(){
       try{
         if(!window.firebase) throw new Error("Firebase SDKの読み込みに失敗しました。");
+
         if(!firebase.apps || !firebase.apps.length){
           firebase.initializeApp(firebaseConfig);
         }
+
         auth = firebase.auth();
         db = firebase.database();
 
@@ -1380,7 +1499,7 @@
         auth.onAuthStateChanged((user) => {
           currentUser = user || null;
 
-          // ✅ ログイン直後の逆転防止：キャッシュが同UIDなら先に適用
+          // ✅ ログイン直後はキャッシュ順を先に適用（逆転防止）
           if(currentUser && cachedUid && currentUser.uid === cachedUid && cachedOrderMap && typeof cachedOrderMap === "object"){
             myOrderMap = cachedOrderMap;
           }
@@ -1414,6 +1533,7 @@
 
     function startDbListener(){
       if(gamesRef) return;
+
       gamesRef = db.ref("games");
 
       gamesRef.on("value", (snap) => {
@@ -1454,6 +1574,7 @@
 
     function startTagsListener(){
       if(tagsRef) return;
+
       tagsRef = db.ref("tags");
       tagsRef.on("value", (snap) => {
         const out = [];
@@ -1482,6 +1603,7 @@
         });
 
         dbTagsMap = map;
+
         renderTagsUI();
       }, (err) => {
         dbTags = [];
@@ -1492,6 +1614,7 @@
 
     function startOrderListener(uid){
       if(orderUid === uid && orderRef) return;
+
       stopOrderListener();
       orderUid = uid;
       orderRef = db.ref("userGameOrder").child(uid);
@@ -1507,7 +1630,9 @@
     }
 
     function stopOrderListener(){
-      try{ if(orderRef) orderRef.off(); }catch(_){}
+      try{
+        if(orderRef) orderRef.off();
+      }catch(_){}
       orderRef = null;
       orderUid = null;
       myOrderMap = {};
@@ -1533,6 +1658,7 @@
         createdBy: currentUser.uid,
         createdByEmail: currentUser.email || ""
       };
+
       await db.ref("tags").child(k).set(payload);
     }
 
@@ -1700,7 +1826,8 @@
         setAdminStatus("追加しました！", "ok");
         clearForm();
       }catch(err){
-        setAdminStatus(err?.message || String(err || ""), "err");
+        const msg = err?.message || String(err || "");
+        setAdminStatus(msg, "err");
       }
     }
 
@@ -1745,6 +1872,7 @@
         if(formMinPlayers > formMaxPlayers) formMinPlayers = formMaxPlayers;
 
         formTimeMin = clamp(formTimeMin, 5, 240);
+
         const tags = (formTags || []).map(normTag).filter(Boolean).slice(0, 20);
 
         setAdminStatus("更新中...", null);
@@ -1769,7 +1897,8 @@
         setAdminStatus("更新しました！", "ok");
         clearForm();
       }catch(err){
-        setAdminStatus(err?.message || String(err || ""), "err");
+        const msg = err?.message || String(err || "");
+        setAdminStatus(msg, "err");
       }
     }
 
@@ -1817,7 +1946,7 @@
     }
 
     // =========================
-    // ✅ Grid 表示（順番は常に「決定的」）
+    // ✅ Grid 表示（決定的順序）
     // =========================
     function getMyOrderedGameIds(uid, orderMap){
       if(!uid) return [];
@@ -1832,12 +1961,12 @@
       }
       withOrder.sort((a,b) => a[0]-b[0]);
       withoutOrder.sort((a,b) => (b.createdAt||0)-(a.createdAt||0));
+
       return [...withOrder.map(x=>x[1]), ...withoutOrder.map(x=>x.id)];
     }
 
     function makeDisplayGames(){
       const dbSorted = [...dbGames].sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
-
       const ctx = getOrderContext();
       const uid = ctx.uid;
       const orderMap = ctx.orderMap || {};
@@ -1856,6 +1985,7 @@
       }
 
       const others = dbSorted.filter(g => !myIdSet.has(g.id));
+
       return [...seedGames, ...mineOrdered, ...others];
     }
 
@@ -1879,12 +2009,35 @@
       requestSyncLayout();
     }
 
-    function persistMyOrderFromDom(){
+    // =========================
+    // ✅ ここが新方式：保存も挿入判定も「見た目順（上→下、左→右）」で統一
+    // =========================
+    function getVisualMySlots(){
+      const els = [...grid.querySelectorAll(".slot[data-my='1']")]
+        .filter(el => (el.getAttribute("data-gameid") || "").trim() !== "");
+
+      const items = els.map(el => ({ el, r: el.getBoundingClientRect() }));
+
+      // ✅ row-bucket：端末差の微妙なズレを吸収（10px単位）
+      const bucket = (v) => Math.round(v / 10) * 10;
+
+      items.sort((a,b) => {
+        const ay = bucket(a.r.top);
+        const by = bucket(b.r.top);
+        if(ay !== by) return ay - by;
+        return a.r.left - b.r.left;
+      });
+
+      return items.map(x => x.el);
+    }
+
+    function persistMyOrderFromVisual(){
       if(!currentUser || !orderRef) return;
 
-      const myEls = [...grid.querySelectorAll(".slot[data-my='1']")];
-      const ids = myEls
+      const visual = getVisualMySlots();
+      const ids = visual
         .map(el => el.getAttribute("data-gameid") || "")
+        .map(s => s.trim())
         .filter(Boolean);
 
       const updates = {};
@@ -1896,6 +2049,32 @@
       }).catch(err => {
         toast("保存に失敗: " + (err?.message || err), 1400);
       });
+    }
+
+    function getInsertBeforeFromPointer(x, y){
+      const bucket = (v) => Math.round(v / 10) * 10;
+      const ordered = getVisualMySlots().filter(el => el !== draggingSlot);
+
+      for(const el of ordered){
+        const r = el.getBoundingClientRect();
+        const midY = r.top + r.height / 2;
+        const midX = r.left + r.width / 2;
+
+        const py = bucket(y);
+        const ey = bucket(midY);
+
+        // ✅ “見た目の読み順”で「この要素より前か？」を判定
+        if(py < ey) return el;
+        if(py === ey && x < midX) return el;
+      }
+      return null; // 最後へ
+    }
+
+    function getMyGroupAnchorForAppend(){
+      // ✅ 「自分カード群の最後の次」に入れる（他人/空枠の前に固定）
+      const visual = getVisualMySlots();
+      const last = visual[visual.length - 1] || null;
+      return last ? last.nextSibling : null;
     }
 
     // =========================
@@ -1977,12 +2156,16 @@
 
     btnTagAdd.addEventListener("click", async () => {
       try{
-        const t = normTag(fTagInput.value);
+        const raw = fTagInput.value;
+        const t = normTag(raw);
         if(!t) return;
+
         addTagToForm(t);
         fTagInput.value = "";
         fTagInput.focus();
+
         await upsertTagToDB(t);
+
         setAdminStatus("タグを登録しました（以降も候補に出ます）", "ok");
         setTimeout(() => setAdminStatus("", null), 900);
       }catch(err){
@@ -1994,11 +2177,15 @@
       if(e.key === "Enter"){
         e.preventDefault();
         try{
-          const t = normTag(fTagInput.value);
+          const raw = fTagInput.value;
+          const t = normTag(raw);
           if(!t) return;
+
           addTagToForm(t);
           fTagInput.value = "";
+
           await upsertTagToDB(t);
+
           setAdminStatus("タグを登録しました（以降も候補に出ます）", "ok");
           setTimeout(() => setAdminStatus("", null), 900);
         }catch(err){
@@ -2007,18 +2194,19 @@
       }
     });
 
-    // ✅ 選択中タグ：クリックで解除
+    // ✅ 選択中タグ click/drag は元仕様のまま
+    let draggingTagEl = null;
+
     selectedTagsEl.addEventListener("click", (e) => {
       const chip = e.target.closest(".tagPickChip.on");
       if(!chip) return;
-      if(chip.classList.contains("dragging")) return;
+      if(draggingTagEl) return;
+
       const enc = chip.getAttribute("data-tagval") || "";
       const tag = decodeURIComponent(enc || "");
       removeTagFromForm(tag);
     });
 
-    // ✅ 選択中タグ：ドラッグで並べ替え（ここは従来通り）
-    let draggingTagEl = null;
     selectedTagsEl.addEventListener("dragstart", (e) => {
       const chip = e.target.closest(".tagPickChip.on");
       if(!chip) return;
@@ -2029,44 +2217,55 @@
         e.dataTransfer.setData("text/plain", chip.getAttribute("data-tagval") || "");
       }catch(_){}
     });
+
     selectedTagsEl.addEventListener("dragover", (e) => {
       if(!draggingTagEl) return;
       e.preventDefault();
+
       const over = e.target.closest(".tagPickChip.on");
       if(!over || over === draggingTagEl) return;
+
       const rect = over.getBoundingClientRect();
       const before = (e.clientX - rect.left) < rect.width / 2;
       selectedTagsEl.insertBefore(draggingTagEl, before ? over : over.nextSibling);
     });
+
     selectedTagsEl.addEventListener("drop", (e) => {
       if(!draggingTagEl) return;
       e.preventDefault();
+
       const ordered = [...selectedTagsEl.querySelectorAll(".tagPickChip.on")]
         .map(el => decodeURIComponent(el.getAttribute("data-tagval") || ""))
         .map(normTag)
         .filter(Boolean);
+
       formTags = ordered;
       renderTagsUI();
       setAdminStatus("タグの順番を更新しました。", "ok");
       setTimeout(() => setAdminStatus("", null), 700);
     });
+
     selectedTagsEl.addEventListener("dragend", () => {
-      if(draggingTagEl) draggingTagEl.classList.remove("dragging");
+      if(draggingTagEl){
+        draggingTagEl.classList.remove("dragging");
+      }
       draggingTagEl = null;
     });
 
-    // ✅ 既存タグクリック（削除あり）
     tagSuggestionsEl.addEventListener("click", async (e) => {
       const del = e.target.closest("[data-del]");
       if(del){
         const k = del.getAttribute("data-del") || "";
         e.preventDefault();
         e.stopPropagation();
-        try{ await deleteTagFromDB(k); }catch(err){
+        try{
+          await deleteTagFromDB(k);
+        }catch(err){
           setAdminStatus(err?.message || String(err || ""), "err");
         }
         return;
       }
+
       const chip = e.target.closest("[data-tag]");
       if(!chip) return;
       const tag = chip.getAttribute("data-tag") || "";
@@ -2092,6 +2291,7 @@
       if(!sf) return;
       const slot = e.target.closest(".slot");
       if(!slot) return;
+
       if(slot.getAttribute("data-hasprev") !== "1") return;
 
       SF_CLICK.active = true;
@@ -2108,7 +2308,9 @@
       const dy = e.clientY - SF_CLICK.startY;
       const dist = Math.hypot(dx, dy);
       SF_CLICK.movedDist = dist;
-      if(dist > SF_MOVE_PX) SF_CLICK.moved = true;
+      if(dist > SF_MOVE_PX){
+        SF_CLICK.moved = true;
+      }
     }, { passive:true });
 
     grid.addEventListener("pointerup", (e) => {
@@ -2123,9 +2325,6 @@
       if(!sf) return;
       const slot = e.target.closest(".slot");
       if(!slot) return;
-
-      // ✅ プレビュー表示中は並べ替え無効（事故防止）
-      if(REORDER.active) return;
 
       openSfOverlayForSlot(slot);
       suppressNextClick(450);
@@ -2158,20 +2357,23 @@
 
       const ov = e.target.closest(".sfOverlay.show");
       if(ov){
-        if(isLink) return; // 1クリックでリンクへ
+        if(isLink) return;
         e.preventDefault();
         e.stopPropagation();
         closeOverlay(ov);
+        return;
       }
     });
 
-    // ✅ secondframeの外クリック or スクロールで、全プレビューを消す
     window.addEventListener("pointerdown", (e) => {
-      if(!document.querySelector(".sfOverlay.show")) return;
+      const anyOpen = !!document.querySelector(".sfOverlay.show");
+      if(!anyOpen) return;
+
       if(e.target.closest(".sfInner")) return;
       if(e.target.closest(".secondframe")) return;
       if(e.target.closest("[data-action='sfClose']")) return;
       if(e.target.closest(".sfImgLink")) return;
+
       closeAllSfOverlays();
     }, { passive:true });
 
@@ -2185,284 +2387,86 @@
     window.addEventListener("scroll", closeOnScroll, { passive:true });
 
     // =========================
-    // ✅ 並べ替え（Pointer版 / PC・スマホ共通）
-    //    - HTML5 drag&drop を完全廃止
-    //    - 「視覚位置（top→left順）」で挿入位置を決定 → 端末差が出にくい
+    // ✅ Grid drag & drop（新方式：挿入判定も保存も見た目順）
     // =========================
-    function anyPreviewOpen(){
-      return !!grid.querySelector(".sfOverlay.show");
-    }
+    let draggingSlot = null;
 
-    function getMySlots(){
-      return [...grid.querySelectorAll(".slot[data-my='1']")].filter(el => (el.getAttribute("data-gameid")||"").trim());
-    }
+    grid.addEventListener("dragstart", (e) => {
+      const slot = e.target.closest(".slot");
+      if(!slot) return;
 
-    // 視覚順（上→下、左→右）で並ぶように rect からソート
-    function sortByVisualOrder(els){
-      return [...els].sort((a,b) => {
-        const ra = a.getBoundingClientRect();
-        const rb = b.getBoundingClientRect();
-        const ay = Math.round(ra.top / 2) * 2;
-        const by = Math.round(rb.top / 2) * 2;
-        if(ay !== by) return ay - by;
-        return ra.left - rb.left;
-      });
-    }
+      const isMy = slot.getAttribute("data-my") === "1";
+      const gid = (slot.getAttribute("data-gameid") || "").trim();
+      if(!isMy || !gid) return;
 
-    function makePlaceholderLike(el){
-      const ph = document.createElement("div");
-      ph.className = "slotPlaceholder";
-      const r = el.getBoundingClientRect();
-      ph.style.height = r.height + "px";
-      return ph;
-    }
+      if(slot.querySelector(".sfOverlay.show")) return;
 
-    function setGhostFromEl(el){
-      // ざっくり見た目だけコピー（重すぎないよう innerHTML を使う）
-      dragGhostInner.innerHTML = el.outerHTML;
-      const innerSlot = dragGhostInner.querySelector(".slot");
-      if(innerSlot){
-        innerSlot.style.margin = "0";
-        innerSlot.style.cursor = "grabbing";
-      }
-    }
-
-    function moveGhost(x,y){
-      // pointer位置に合わせてゴースト移動（少しズラして見やすく）
-      const gx = x - REORDER.offsetX;
-      const gy = y - REORDER.offsetY;
-      dragGhost.style.transform = `translate(${gx}px, ${gy}px)`;
-    }
-
-    function findInsertBeforeEl(x, y, draggingEl){
-      const my = getMySlots().filter(el => el !== draggingEl && el !== REORDER.placeholder);
-      const ordered = sortByVisualOrder(my);
-
-      // 「各要素の中心より前なら before」とみなす
-      for(const el of ordered){
-        const r = el.getBoundingClientRect();
-        const cx = r.left + r.width/2;
-        const cy = r.top  + r.height/2;
-
-        // 行優先（y）で判定、同程度なら x
-        const dy = y - cy;
-        if(dy < 0){
-          return el; // その要素の前
-        }
-        if(Math.abs(dy) < r.height * 0.35){
-          if(x < cx) return el;
-        }
-      }
-      return null; // 末尾
-    }
-
-    function beginReorder(slot, e){
-      if(!currentUser) return;
-      if(slot.getAttribute("data-my") !== "1") return;
-      if(anyPreviewOpen()) return; // プレビュー表示中は無効
-      if(editingId) return;        // 編集中は事故防止で無効
-
-      REORDER.active = true;
-      REORDER.pointerId = e.pointerId;
-      REORDER.originEl = slot;
-
-      // placeholder
-      REORDER.placeholder = makePlaceholderLike(slot);
-      slot.classList.add("draggingOrigin");
-
-      // placeholder を slot の位置に差し込んでから、slot はフローティング扱い
-      slot.parentNode.insertBefore(REORDER.placeholder, slot);
-      // slot を一旦 DOM から外す（レイアウトを安定させる）
-      slot.parentNode.removeChild(slot);
-
-      // ghost
-      setGhostFromEl(slot);
-      dragGhost.style.display = "block";
-
-      // オフセット（掴んだ位置を維持）
-      const pr = REORDER.placeholder.getBoundingClientRect();
-      REORDER.offsetX = (e.clientX - pr.left) + 18;
-      REORDER.offsetY = (e.clientY - pr.top)  + 18;
-
-      moveGhost(e.clientX, e.clientY);
-
+      draggingSlot = slot;
+      slot.classList.add("dragging");
       dropHint.textContent = "ドラッグで並べ替え中…";
       dropHint.classList.add("show");
 
-      // ページスクロール抑止
-      document.body.style.userSelect = "none";
-    }
-
-    function updateReorder(e){
-      if(!REORDER.active) return;
-      if(e.pointerId !== REORDER.pointerId) return;
-
-      moveGhost(e.clientX, e.clientY);
-
-      const before = findInsertBeforeEl(e.clientX, e.clientY, REORDER.originEl);
-      const ph = REORDER.placeholder;
-      if(!ph) return;
-
-      // 既に同じ位置なら何もしない
-      if(before === ph.nextSibling) return;
-
-      // 自分カード群の中に必ず入れる（他人カードの前後に飛ばないように）
-      if(before){
-        grid.insertBefore(ph, before);
-      }else{
-        // 末尾：自分カードの最後の直後へ
-        const my = getMySlots().filter(el => el !== REORDER.originEl);
-        const ordered = sortByVisualOrder(my);
-        const last = ordered[ordered.length-1] || null;
-        if(last){
-          // last の直後
-          if(last.nextSibling) grid.insertBefore(ph, last.nextSibling);
-          else grid.appendChild(ph);
-        }else{
-          grid.appendChild(ph);
-        }
-      }
-
-      requestSyncLayout();
-    }
-
-    function endReorder(commit){
-      if(!REORDER.active) return;
-
-      // 元カードを placeholder の位置に戻す
-      const slot = REORDER.originEl;
-      const ph = REORDER.placeholder;
-
       try{
-        if(ph && ph.parentNode){
-          ph.parentNode.insertBefore(slot, ph);
-          ph.parentNode.removeChild(ph);
-        }else{
-          grid.appendChild(slot);
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", gid);
+      }catch(_){}
+    });
+
+    grid.addEventListener("dragover", (e) => {
+      if(!draggingSlot) return;
+      e.preventDefault();
+
+      // ✅ プレビュー表示中は並べ替え不可
+      if(document.querySelector(".sfOverlay.show")) return;
+
+      const over = e.target.closest(".slot");
+      if(!over) return;
+
+      // ✅ 自分のカード内だけで移動
+      if(over.getAttribute("data-my") !== "1") return;
+
+      const beforeEl = getInsertBeforeFromPointer(e.clientX, e.clientY);
+
+      if(beforeEl){
+        if(beforeEl !== draggingSlot){
+          grid.insertBefore(draggingSlot, beforeEl);
+          requestSyncLayout();
         }
-      }catch(_){
-        // fallback
-        try{ grid.appendChild(slot); }catch(__){}
+      }else{
+        const anchor = getMyGroupAnchorForAppend();
+        grid.insertBefore(draggingSlot, anchor);
+        requestSyncLayout();
       }
+    });
 
-      slot.classList.remove("draggingOrigin");
+    grid.addEventListener("drop", (e) => {
+      if(!draggingSlot) return;
+      e.preventDefault();
 
-      // ghost off
-      dragGhost.style.display = "none";
-      dragGhost.style.transform = "translate(-9999px,-9999px)";
-      dragGhostInner.innerHTML = "";
-
-      REORDER.active = false;
-      REORDER.pointerId = null;
-      REORDER.originEl = null;
-      REORDER.placeholder = null;
-
-      document.body.style.userSelect = "";
-
-      setTimeout(() => dropHint.classList.remove("show"), 220);
-
+      // ✅ 保存はDOM順ではなく「見た目順」で必ず統一
+      persistMyOrderFromVisual();
       requestSyncLayout();
+    });
 
-      if(commit){
-        persistMyOrderFromDom();
+    grid.addEventListener("dragend", () => {
+      if(draggingSlot){
+        draggingSlot.classList.remove("dragging");
       }
-    }
+      draggingSlot = null;
+      setTimeout(() => {
+        if(!draggingSlot) dropHint.classList.remove("show");
+      }, 400);
+      requestSyncLayout();
+    });
 
-    // ✅ Pointerdown で “長押し or 移動開始” したら reorder
-    grid.addEventListener("pointerdown", (e) => {
-      // 編集ボタン/プレビュー/入力周りは除外
-      if(e.target.closest(".cardEditBtn")) return;
-      if(e.target.closest(".sfOverlay")) return;
-      if(e.target.closest(".sfClose")) return;
-      if(e.target.closest(".sfImgLink")) return;
-
-      const slot = e.target.closest(".slot");
-      if(!slot) return;
-      if(slot.getAttribute("data-my") !== "1") return;
-      const gid = (slot.getAttribute("data-gameid") || "").trim();
-      if(!gid) return;
-
-      // secondframeはプレビュー操作優先
-      if(e.target.closest(".secondframe")) return;
-
-      // プレビュー開いてたら閉じるだけ
-      if(anyPreviewOpen()) return;
-
-      // 長押しタイマ開始
-      REORDER.pointerId = e.pointerId;
-      REORDER.startX = e.clientX;
-      REORDER.startY = e.clientY;
-      REORDER.x = e.clientX;
-      REORDER.y = e.clientY;
-      REORDER.downTime = Date.now();
-      REORDER.moved = false;
-
-      clearTimeout(REORDER.longPressT);
-      REORDER.longPressT = setTimeout(() => {
-        // まだ押していて、あまり動いていないなら開始
-        if(REORDER.active) return;
-        if(REORDER.pointerId !== e.pointerId) return;
-        beginReorder(slot, e);
-      }, LONG_PRESS_MS);
-
-      // capture
-      try{ slot.setPointerCapture(e.pointerId); }catch(_){}
-    }, { passive:true });
-
-    grid.addEventListener("pointermove", (e) => {
-      if(REORDER.pointerId == null) return;
-      if(e.pointerId !== REORDER.pointerId) return;
-
-      const dx = e.clientX - REORDER.startX;
-      const dy = e.clientY - REORDER.startY;
-      const dist = Math.hypot(dx, dy);
-      if(dist > MOVE_START_PX) REORDER.moved = true;
-
-      // もし既に並べ替え中なら更新
-      if(REORDER.active){
-        updateReorder(e);
-        return;
-      }
-
-      // 長押し前でも、大きく動いたら「即開始」に切り替え（PCドラッグ感）
-      if(REORDER.moved){
-        clearTimeout(REORDER.longPressT);
-        const slot = e.target.closest(".slot[data-my='1']");
-        if(slot){
-          beginReorder(slot, e);
-        }
-      }
-    }, { passive:true });
-
-    grid.addEventListener("pointerup", (e) => {
-      if(REORDER.pointerId == null) return;
-      if(e.pointerId !== REORDER.pointerId) return;
-      clearTimeout(REORDER.longPressT);
-
-      if(REORDER.active){
-        endReorder(true);
-      }
-
-      // reset
-      REORDER.pointerId = null;
-      REORDER.moved = false;
-    }, { passive:true });
-
-    grid.addEventListener("pointercancel", (e) => {
-      clearTimeout(REORDER.longPressT);
-      if(REORDER.active) endReorder(false);
-      REORDER.pointerId = null;
-      REORDER.moved = false;
-    }, { passive:true });
-
-    // =========================
-    // ✅ Start
-    // =========================
     window.addEventListener("resize", () => {
       clearTimeout(window.__descResizeT);
       window.__descResizeT = setTimeout(requestSyncLayout, 120);
     });
 
+    // =========================
+    // ✅ Start (亀ローディング完全削除)
+    // =========================
     window.addEventListener("load", () => {
       try{
         const cached = localStorage.getItem(LS_AUTH_EMAIL) || "";
@@ -2474,6 +2478,7 @@
 
       renderGrid();
       updateAuthUI();
+
       initFirebase();
 
       requestSyncLayout();
@@ -2482,6 +2487,7 @@
 
     /*
       ✅ Realtime Database ルール例（previewImg追加）
+
       {
         "rules": {
           "games": {
@@ -2498,7 +2504,9 @@
           },
           "tags": {
             ".read": true,
-            "$tagKey": { ".write": "auth != null" }
+            "$tagKey": {
+              ".write": "auth != null"
+            }
           }
         }
       }
