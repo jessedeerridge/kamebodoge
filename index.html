@@ -871,7 +871,8 @@
       ※ secondframeでプレビュー表示（枠の内側のみ）。<br/>
       ※ プレビュー外クリック/スクロールで閉じます。<br/>
       ※ プレビュー表示中は並べ替えできません。<br/>
-      ※ プレビュー画像は <code>1クリック</code> でリンクへ移動します（PC/スマホ共通）。
+      ※ プレビュー画像は <code>1クリック</code> でリンクへ移動します（PC/スマホ共通）。<br/>
+      ※ ✅ 端末差で「最初のタップがリンク遷移」にならないよう、プレビューを開いた直後の合成clickは抑制しています。
     </div>
   </main>
 
@@ -1061,8 +1062,10 @@
     const SF_TIME_MS = 450;
 
     // ✅ タップ直後の「ghost click」対策
+    // ★ここが今回の主役：PC/スマホで「プレビューを開いた直後のclick」が
+    //   先にリンクへ飛ぶ/先に閉じる、などの逆転現象を起こすので、必ず抑制する。
     let _suppressClickUntil = 0;
-    function suppressNextClick(ms=450){
+    function suppressNextClick(ms=600){
       _suppressClickUntil = Date.now() + ms;
     }
     function isSuppressedClick(){
@@ -2281,7 +2284,10 @@
       if(!slot) return;
 
       openSfOverlayForSlot(slot);
-      suppressNextClick(450);
+
+      // ✅ 端末差で「同じタップが click に化けてリンクへ飛ぶ/即閉じる」を防止
+      // （PCでもスマホでも順番が逆転しないように）
+      suppressNextClick(650);
     }, { passive:true });
 
     function closeOverlay(ov){
@@ -2292,15 +2298,6 @@
 
     // ✅ プレビュー外（sfInnerの外）クリックで閉じる / ×で閉じる
     grid.addEventListener("click", (e) => {
-      const isLink = !!e.target.closest(".sfImgLink");
-
-      // ✅ secondframe直後の抑制は「リンククリックは通す」
-      if(isSuppressedClick() && !isLink){
-        e.preventDefault();
-        e.stopPropagation();
-        return;
-      }
-
       const closeBtn = e.target.closest("[data-action='sfClose']");
       if(closeBtn){
         e.preventDefault();
@@ -2309,6 +2306,16 @@
         closeOverlay(ov);
         return;
       }
+
+      // ✅ ★重要：プレビューを開いた直後の合成clickは「全部」抑制
+      // これで PC/スマホで「プレビュー→リンク」の順番が逆にならない
+      if(isSuppressedClick()){
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
+      const isLink = !!e.target.closest(".sfImgLink");
 
       const ov = e.target.closest(".sfOverlay.show");
       if(ov){
@@ -2359,8 +2366,6 @@
       let best = null;
       let bestScore = Infinity;
 
-      // score: (rowMajor distance)  = bigWeight*(cy - y) + (cx - x)
-      // ただし「カーソルより後」にある要素だけ対象にして、最も近いものを選ぶ
       const BIG = 10000;
 
       for(const el of candidates){
@@ -2371,8 +2376,6 @@
         const dy = cy - y;
         const dx = cx - x;
 
-        // 「後」にある要素: dy>0 もしくは 同じ行近傍で dx>0
-        // まず rowMajor で判定するため、dy を強く効かせる
         const rowMajor = dy * BIG + dx;
 
         if(rowMajor >= 0){
