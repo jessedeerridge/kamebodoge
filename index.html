@@ -127,7 +127,7 @@
       display:grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap:12px;
-      align-items:stretch; /* ✅ 同じ行は自動で同じ高さ */
+      align-items:stretch;
     }
     @media (min-width: 700px){
       .grid{ grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -146,7 +146,6 @@
       overflow:hidden;
       min-width:0;
 
-      /* ✅ 行内で高さを揃えるため */
       height:100%;
       display:flex;
       flex-direction:column;
@@ -164,7 +163,7 @@
       place-items:center;
       cursor: pointer;
       -webkit-tap-highlight-color: transparent;
-      touch-action: pan-y; /* ✅ スクロール優先 */
+      touch-action: pan-y;
     }
     .secondframe::before{
       content:"";
@@ -225,12 +224,14 @@
       backdrop-filter: blur(2px);
     }
 
+    /* ✅ プレビュー画像は「1クリックでリンクへ」 */
     .sfOverlay .sfImgLink{
       position:absolute;
       inset:0;
       display:block;
       text-decoration:none;
       touch-action: manipulation;
+      cursor: pointer;
     }
     .sfOverlay img{
       width:100%;
@@ -240,10 +241,6 @@
       user-select:none;
       -webkit-user-drag:none;
     }
-
-    /* ✅ 説明（sfHint/sfHintTap）は不要なのでCSSも消してOKだが、念のため非表示 */
-    .sfOverlay .sfHint,
-    .sfOverlay .sfHintTap{ display:none !important; }
 
     .sfOverlay .sfClose{
       position:absolute;
@@ -451,7 +448,6 @@
     }
     .dropHint.show{ display:block; }
 
-    /* ✅ footnoteは残すが「タップで移動」説明は削除 */
     .footnote{
       max-width:1100px;
       margin:0 auto;
@@ -874,7 +870,8 @@
     <div class="footnote">
       ※ secondframeでプレビュー表示（枠の内側のみ）。<br/>
       ※ プレビュー外クリック/スクロールで閉じます。<br/>
-      ※ プレビュー表示中は並べ替えできません。
+      ※ プレビュー表示中は並べ替えできません。<br/>
+      ※ プレビュー画像は <code>1クリック</code> でリンクへ移動します（PC/スマホ共通）。
     </div>
   </main>
 
@@ -946,7 +943,6 @@
     // ✅ localStorage keys
     // =========================
     const LS_AUTH_EMAIL   = "kame_bodoge_auth_email";
-    // ✅ 追加：ログイン/ログアウトで“枠順”が逆転しないように、最後のUIDと並び順をローカルにキャッシュ
     const LS_LAST_UID     = "kame_bodoge_last_uid";
     const LS_ORDER_CACHE  = "kame_bodoge_order_cache";
 
@@ -1063,9 +1059,6 @@
     const SF_CLICK = { active:false, moved:false, startX:0, startY:0, movedDist:0, downTime:0 };
     const SF_MOVE_PX = 10;
     const SF_TIME_MS = 450;
-
-    // ✅ タップ端末では「表示」と「遷移」を分離（2タップ方式）
-    const IS_COARSE = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
 
     // ✅ タップ直後の「ghost click」対策
     let _suppressClickUntil = 0;
@@ -1307,8 +1300,6 @@
       for(const ov of overlays){
         ov.classList.remove("show");
         ov.setAttribute("aria-hidden","true");
-        const a = ov.querySelector(".sfImgLink");
-        if(a) a.dataset.allowNav = IS_COARSE ? "0" : "1";
       }
     }
 
@@ -1323,11 +1314,6 @@
 
       ov.classList.add("show");
       ov.setAttribute("aria-hidden","false");
-
-      const a = ov.querySelector(".sfImgLink");
-      if(a){
-        a.dataset.allowNav = IS_COARSE ? "0" : "1";
-      }
     }
 
     // =========================
@@ -1384,7 +1370,7 @@
       const hasPrev = !!(hasGame && previewImg);
       const prevLink = (hasPrev && hasGame)
         ? `
-          <a class="sfImgLink" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" data-allow-nav="${IS_COARSE ? "0" : "1"}">
+          <a class="sfImgLink" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">
             <img src="${escapeHtml(previewImg)}" alt="">
           </a>
         `
@@ -1528,7 +1514,6 @@
           startTagsListener();
 
           if(currentUser){
-            // ✅ 最終UIDを保存（ログアウト後も同じ並びを維持）
             cacheOrderToLocal(currentUser.uid, myOrderMap || {});
             startOrderListener(currentUser.uid);
           }else{
@@ -1639,7 +1624,7 @@
 
       orderRef.on("value", (snap) => {
         myOrderMap = snap.val() || {};
-        cacheOrderToLocal(uid, myOrderMap); // ✅ ローカルへ常に保存（ログアウト後も並び維持）
+        cacheOrderToLocal(uid, myOrderMap);
         renderGrid();
       }, (err) => {
         myOrderMap = {};
@@ -1964,7 +1949,7 @@
     }
 
     // =========================
-    // ✅ Grid 表示（ログイン/ログアウトで順番が逆転しない）
+    // ✅ Grid 表示（PC/スマホで「表示順が同じ」になるように完全固定）
     // =========================
     function getMyOrderedGameIds(uid, orderMap){
       if(!uid) return [];
@@ -1984,29 +1969,28 @@
     }
 
     function makeDisplayGames(){
+      // ✅ ここは「端末条件に依存しない」決定的な順序だけで組み立てる
       const dbSorted = [...dbGames].sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
 
-      // ✅ 表示用のUID/順番は「ログイン中はcurrent」「ログアウト時は最後のキャッシュ」を使う
       const ctx = getOrderContext();
       const uid = ctx.uid;
       const orderMap = ctx.orderMap || {};
 
       if(!uid){
-        // キャッシュが無い/未ログインなら通常の新しい順
         return [...seedGames, ...dbSorted];
       }
 
-      const myIds = new Set(getMyOrderedGameIds(uid, orderMap));
+      const myOrderedIds = getMyOrderedGameIds(uid, orderMap);
+      const myIdSet = new Set(myOrderedIds);
 
       const mineOrdered = [];
-      for(const id of getMyOrderedGameIds(uid, orderMap)){
+      for(const id of myOrderedIds){
         const g = dbGames.find(x => x.id === id);
         if(g) mineOrdered.push(g);
       }
 
-      const others = dbSorted.filter(g => !myIds.has(g.id));
+      const others = dbSorted.filter(g => !myIdSet.has(g.id));
 
-      // ✅ ここがポイント：ログイン/ログアウトで組み立て方を同じにする（逆転しない）
       return [...seedGames, ...mineOrdered, ...others];
     }
 
@@ -2244,7 +2228,6 @@
 
     // ✅ カード右下「編集」ボタン
     grid.addEventListener("click", (e) => {
-      if(isSuppressedClick()) return;
       const btn = e.target.closest("[data-action='editGame']");
       if(!btn) return;
       const id = btn.getAttribute("data-id") || "";
@@ -2279,7 +2262,7 @@
       const dy = e.clientY - SF_CLICK.startY;
       const dist = Math.hypot(dx, dy);
       SF_CLICK.movedDist = dist;
-      if(dist > 10){
+      if(dist > SF_MOVE_PX){
         SF_CLICK.moved = true;
       }
     }, { passive:true });
@@ -2290,7 +2273,7 @@
 
       const dt = Date.now() - SF_CLICK.downTime;
       if(SF_CLICK.moved) return;
-      if(dt > 450) return;
+      if(dt > SF_TIME_MS) return;
 
       const sf = e.target.closest(".secondframe[data-action='sf']");
       if(!sf) return;
@@ -2305,13 +2288,14 @@
       if(!ov) return;
       ov.classList.remove("show");
       ov.setAttribute("aria-hidden","true");
-      const a = ov.querySelector(".sfImgLink");
-      if(a) a.dataset.allowNav = IS_COARSE ? "0" : "1";
     }
 
     // ✅ プレビュー外（sfInnerの外）クリックで閉じる / ×で閉じる
     grid.addEventListener("click", (e) => {
-      if(isSuppressedClick()){
+      const isLink = !!e.target.closest(".sfImgLink");
+
+      // ✅ secondframe直後の抑制は「リンククリックは通す」
+      if(isSuppressedClick() && !isLink){
         e.preventDefault();
         e.stopPropagation();
         return;
@@ -2328,8 +2312,8 @@
 
       const ov = e.target.closest(".sfOverlay.show");
       if(ov){
-        const a = e.target.closest(".sfImgLink");
-        if(a) return;
+        // ✅ 画像リンクはそのまま遷移（1クリック）
+        if(isLink) return;
 
         e.preventDefault();
         e.stopPropagation();
@@ -2337,35 +2321,6 @@
         return;
       }
     });
-
-    /* ============================================================
-       ✅ タップ端末：2タップ遷移
-       ============================================================ */
-    grid.addEventListener("click", (e) => {
-      const a = e.target.closest(".sfImgLink");
-      if(!a) return;
-
-      const ov = a.closest(".sfOverlay");
-      if(!ov || !ov.classList.contains("show")) return;
-
-      if(IS_COARSE){
-        const allow = a.dataset.allowNav === "1";
-        if(!allow){
-          e.preventDefault();
-          e.stopPropagation();
-          a.dataset.allowNav = "1";
-          suppressNextClick(250);
-          return;
-        }
-        return; // 2回目：遷移OK
-      }
-    });
-
-    grid.addEventListener("touchend", (e) => {
-      if(e.target.closest(".secondframe") || e.target.closest(".sfOverlay.show")){
-        suppressNextClick(450);
-      }
-    }, { passive:true });
 
     /* ============================================================
        ✅ secondframeの外クリック or スクロールで、全プレビューを消す
@@ -2392,8 +2347,44 @@
     window.addEventListener("scroll", closeOnScroll, { passive:true });
 
     // =========================
-    // ✅ Grid drag & drop（常時ON：自分のカードだけ）
+    // ✅ Grid drag & drop（「表示順が端末でズレない」: グリッド対応の挿入判定）
     // =========================
+    function getMySlotsInDom(){
+      return [...grid.querySelectorAll(".slot[data-my='1']")];
+    }
+
+    function getGridAfterElement(mySlots, x, y){
+      // ✅ 「上→下、左→右」の読み順を、端末の列数に依存せず再現
+      const candidates = mySlots.filter(el => el !== draggingSlot);
+      let best = null;
+      let bestScore = Infinity;
+
+      // score: (rowMajor distance)  = bigWeight*(cy - y) + (cx - x)
+      // ただし「カーソルより後」にある要素だけ対象にして、最も近いものを選ぶ
+      const BIG = 10000;
+
+      for(const el of candidates){
+        const r = el.getBoundingClientRect();
+        const cx = r.left + r.width/2;
+        const cy = r.top  + r.height/2;
+
+        const dy = cy - y;
+        const dx = cx - x;
+
+        // 「後」にある要素: dy>0 もしくは 同じ行近傍で dx>0
+        // まず rowMajor で判定するため、dy を強く効かせる
+        const rowMajor = dy * BIG + dx;
+
+        if(rowMajor >= 0){
+          if(rowMajor < bestScore){
+            bestScore = rowMajor;
+            best = el;
+          }
+        }
+      }
+      return best; // nullなら末尾へ
+    }
+
     grid.addEventListener("dragstart", (e) => {
       const slot = e.target.closest(".slot");
       if(!slot) return;
@@ -2420,15 +2411,28 @@
       e.preventDefault();
 
       const over = e.target.closest(".slot");
-      if(!over || over === draggingSlot) return;
+      if(!over) return;
 
-      const isOverMy = over.getAttribute("data-my") === "1";
-      if(!isOverMy) return;
+      // ✅ 自分のカード内だけで移動
+      if(over.getAttribute("data-my") !== "1") return;
 
-      const rect = over.getBoundingClientRect();
-      const before = (e.clientY - rect.top) < rect.height / 2;
-      grid.insertBefore(draggingSlot, before ? over : over.nextSibling);
-      requestSyncLayout();
+      const mySlots = getMySlotsInDom();
+      if(!mySlots.length) return;
+
+      const after = getGridAfterElement(mySlots, e.clientX, e.clientY);
+
+      if(after){
+        if(after !== draggingSlot){
+          grid.insertBefore(draggingSlot, after);
+          requestSyncLayout();
+        }
+      }else{
+        // ✅ 自分のカード群の末尾へ（他人カード/空枠の前に固定）
+        const lastMy = [...getMySlotsInDom()].filter(el => el !== draggingSlot).slice(-1)[0] || null;
+        const anchor = lastMy ? lastMy.nextSibling : null; // nullなら最後へ
+        grid.insertBefore(draggingSlot, anchor);
+        requestSyncLayout();
+      }
     });
 
     grid.addEventListener("drop", (e) => {
