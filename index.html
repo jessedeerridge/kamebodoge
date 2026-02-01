@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
@@ -684,16 +684,16 @@
     .hidden{ display:none !important; }
 
     /* =========================
-       ✅ Special FIRST tile (NOW PLAY) — "画像だけ"
+       ✅ Special FIRST tile (NOW PLAY)
+       - 文字：黒字/大きく/背景なし（※背景グラデは削除）
        ========================= */
     .slot.special{
-      background:
-        radial-gradient(900px 420px at 10% 10%, rgba(37,99,235,.10), transparent 60%),
-        radial-gradient(900px 420px at 90% 30%, rgba(99,102,241,.08), transparent 58%),
-        linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.98));
-      border-color: rgba(37,99,235,.18);
+      /* 背景不要：slot自体も素のままに近づける */
+      background: transparent;
+      border-color: rgba(0,0,0,.12);
       padding:12px;
       display:flex;
+      box-shadow: var(--shadow);
     }
     .slot.special .nowPlayArea{
       width:100%;
@@ -701,10 +701,7 @@
       overflow:hidden;
       position:relative;
       border:1px solid rgba(0,0,0,.10);
-      background:
-        radial-gradient(700px 300px at 20% 20%, rgba(37,99,235,.10), transparent 60%),
-        radial-gradient(700px 300px at 80% 40%, rgba(99,102,241,.08), transparent 58%),
-        rgba(0,0,0,.03);
+      background: transparent; /* ✅ 背景不要 */
       min-height:140px;
       display:flex;
       align-items:center;
@@ -718,6 +715,26 @@
       user-select:none;
       -webkit-user-drag:none;
     }
+
+    /* ✅ 追加：画像の上に「NOW PLAY!」を表示（黒字・大きく・背景なし） */
+    .nowPlayText{
+      position:absolute;
+      inset:0;
+      z-index:4;              /* 画像の上、クリックレイヤーの下 */
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight: 1000;
+      letter-spacing: .10em;
+      color:#000;             /* ✅ 黒字 */
+      font-size: clamp(28px, 4.2vw, 62px); /* ✅ 大きく（レスポンシブ） */
+      line-height:1;
+      pointer-events:none;    /* ✅ クリックを邪魔しない */
+      user-select:none;
+      /* 背景不要のまま、読みやすさだけ少し補助（背景ではなく影） */
+      text-shadow: 0 2px 10px rgba(255,255,255,.55);
+    }
+
     .nowPlayClickLayer{
       position:absolute;
       inset:0;
@@ -1440,7 +1457,7 @@
     // =========================
     // ✅ Slot HTML
     // =========================
-    // ✅ NOW PLAYは「画像だけ」に変更
+    // ✅ NOW PLAYは「画像 + 文字（黒字/大）」＋クリックレイヤー
     function specialSlotHTML(index){
       const has = !!(nowPlay && nowPlay.url && nowPlay.previewImg && nowPlay.hhmm);
       return `
@@ -1452,6 +1469,7 @@
           draggable="false">
           <div class="nowPlayArea" aria-label="now-play-area">
             ${has ? `<img src="${escapeHtml(nowPlay.previewImg)}" alt="">` : ``}
+            <div class="nowPlayText" aria-hidden="true">NOW PLAY!</div>
             ${has ? `<div class="nowPlayClickLayer" data-action="nowPlayOpen" title="クリックで開始"></div>` : ``}
           </div>
         </article>
