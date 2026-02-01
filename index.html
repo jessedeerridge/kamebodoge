@@ -682,6 +682,51 @@
     }
 
     .hidden{ display:none !important; }
+
+    /* =========================
+       ✅ Special FIRST tile (NOW PLAY) — "画像だけ"
+       ========================= */
+    .slot.special{
+      background:
+        radial-gradient(900px 420px at 10% 10%, rgba(37,99,235,.10), transparent 60%),
+        radial-gradient(900px 420px at 90% 30%, rgba(99,102,241,.08), transparent 58%),
+        linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.98));
+      border-color: rgba(37,99,235,.18);
+      padding:12px;
+      display:flex;
+    }
+    .slot.special .nowPlayArea{
+      width:100%;
+      border-radius:14px;
+      overflow:hidden;
+      position:relative;
+      border:1px solid rgba(0,0,0,.10);
+      background:
+        radial-gradient(700px 300px at 20% 20%, rgba(37,99,235,.10), transparent 60%),
+        radial-gradient(700px 300px at 80% 40%, rgba(99,102,241,.08), transparent 58%),
+        rgba(0,0,0,.03);
+      min-height:140px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .slot.special .nowPlayArea img{
+      width:100%;
+      height:100%;
+      object-fit: cover;
+      display:block;
+      user-select:none;
+      -webkit-user-drag:none;
+    }
+    .nowPlayClickLayer{
+      position:absolute;
+      inset:0;
+      z-index:5;
+      cursor:pointer;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      pointer-events:auto;
+    }
   </style>
 </head>
 
@@ -832,7 +877,8 @@
       ※ プレビュー外クリック/スクロールで閉じます。<br/>
       ※ プレビュー表示中は並べ替えできません。<br/>
       ※ プレビュー画像は <code>1クリック</code> でリンクへ移動します（PC/スマホ共通）。<br/>
-      ※ 表示順は <code>games/{gid}/orderIndex</code> に保存されるため、キャッシュ/ログイン状態に関わらず端末間で一致します。
+      ※ 表示順は <code>games/{gid}/orderIndex</code> に保存されるため、キャッシュ/ログイン状態に関わらず端末間で一致します。<br/>
+      ※ 先頭の「NOW PLAY」枠は <code>ゲーム長押し → パスワード</code> でセットできます。
     </div>
   </main>
 
@@ -879,6 +925,32 @@
     </div>
   </div>
 
+  <!-- ===== Modal: NOW PLAY password (long-press) ===== -->
+  <div class="modalOverlay" id="pwModalOverlay" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="password-modal">
+      <div class="modalHead">
+        <div class="adminTitle" style="font-size:14px;">NOW PLAY 設定</div>
+        <button class="closeX" id="btnPwClose" aria-label="close">×</button>
+      </div>
+      <div class="modalBody">
+        <div class="mutedNote" id="pwTargetNote">長押ししたゲームを先頭枠にセットします。</div>
+
+        <div class="field">
+          <div class="label">パスワード</div>
+          <!-- ✅ placeholderから数字を消す（パスワードが枠内に出ない） -->
+          <input class="input" id="pwInput" type="password" inputmode="numeric" placeholder="パスワードを入力" />
+        </div>
+
+        <div class="modalErr" id="pwErr"></div>
+
+        <div class="rowActions" style="justify-content:flex-end;">
+          <button class="btn" id="btnPwCancel">キャンセル</button>
+          <button class="btn primary" id="btnPwOk">OK</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     // =========================
     // ✅ Firebase Config
@@ -901,9 +973,10 @@
     const TOTAL_SLOTS = 20;
 
     // =========================
-    // ✅ localStorage keys（認証メールだけ保持）
+    // ✅ localStorage keys
     // =========================
     const LS_AUTH_EMAIL = "kame_bodoge_auth_email";
+    const LS_NOW_PLAY   = "kame_bodoge_now_play_v1"; // {gid,url,previewImg,hhmm,setAt,name}
 
     // =========================
     // ✅ DOM
@@ -962,6 +1035,15 @@
     const authErr   = document.getElementById("authErr");
     const authModeNote = document.getElementById("authModeNote");
 
+    // password modal (NOW PLAY)
+    const pwModalOverlay = document.getElementById("pwModalOverlay");
+    const btnPwClose  = document.getElementById("btnPwClose");
+    const btnPwCancel = document.getElementById("btnPwCancel");
+    const btnPwOk     = document.getElementById("btnPwOk");
+    const pwInput     = document.getElementById("pwInput");
+    const pwErr       = document.getElementById("pwErr");
+    const pwTargetNote= document.getElementById("pwTargetNote");
+
     // =========================
     // ✅ State
     // =========================
@@ -1009,6 +1091,15 @@
     function isSuppressedClick(){
       return Date.now() < _suppressClickUntil;
     }
+
+    // ✅ NOW PLAY state
+    let nowPlay = null; // {gid,url,previewImg,hhmm,setAt,name}
+    let pendingNowPlayGame = null; // {gid,url,previewImg,name}
+
+    // ✅ long-press detector for setting NOW PLAY
+    const LP = { active:false, moved:false, startX:0, startY:0, timer:0, slot:null };
+    const LP_MS = 650;
+    const LP_MOVE = 12;
 
     // =========================
     // ✅ UI helpers
@@ -1219,6 +1310,109 @@
       _syncT = requestAnimationFrame(() => syncAllHeights());
     }
 
+    function toast(text, ms=900){
+      dropHint.textContent = text;
+      dropHint.classList.add("show");
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => {
+        if(!draggingSlot) dropHint.classList.remove("show");
+      }, ms);
+    }
+
+    // =========================
+    // ✅ NOW PLAY helpers
+    // =========================
+    function getHHMMNow(){
+      const d = new Date();
+      const hh = String(d.getHours()).padStart(2,"0");
+      const mm = String(d.getMinutes()).padStart(2,"0");
+      return hh + mm;
+    }
+
+    function appendRoomParam(url, hhmm){
+      const raw = String(url || "").trim();
+      if(!raw) return raw;
+      try{
+        const u = new URL(raw);
+        u.searchParams.set("room", hhmm);
+        return u.toString();
+      }catch(_){
+        const hasQ = raw.includes("?");
+        return raw + (hasQ ? "&" : "?") + "room=" + encodeURIComponent(hhmm);
+      }
+    }
+
+    function loadNowPlay(){
+      try{
+        const s = localStorage.getItem(LS_NOW_PLAY);
+        if(!s) return null;
+        const obj = JSON.parse(s);
+        if(!obj || !obj.url || !obj.previewImg || !obj.hhmm) return null;
+        return obj;
+      }catch(_){
+        return null;
+      }
+    }
+
+    function saveNowPlay(obj){
+      nowPlay = obj || null;
+      try{
+        if(nowPlay) localStorage.setItem(LS_NOW_PLAY, JSON.stringify(nowPlay));
+        else localStorage.removeItem(LS_NOW_PLAY);
+      }catch(_){}
+    }
+
+    function showPwModal(open){
+      pwModalOverlay.classList.toggle("show", !!open);
+      pwModalOverlay.setAttribute("aria-hidden", open ? "false" : "true");
+      pwErr.classList.remove("show");
+      pwErr.textContent = "";
+      pwInput.value = "";
+      if(open){
+        setTimeout(() => pwInput.focus(), 40);
+      }else{
+        pendingNowPlayGame = null;
+      }
+    }
+
+    function openPwForGame(g){
+      pendingNowPlayGame = g;
+      pwTargetNote.textContent = `「${g?.name || "（無題）"}」を先頭の NOW PLAY 枠にセットします。`;
+      showPwModal(true);
+    }
+
+    function confirmPw(){
+      const val = (pwInput.value || "").trim();
+      // ✅ パスワード文字列はUIに出さない（ここは比較だけ）
+      if(val !== "2225"){
+        pwErr.textContent = "パスワードが違います。";
+        pwErr.classList.add("show");
+        return;
+      }
+      if(!pendingNowPlayGame || !pendingNowPlayGame.url || !pendingNowPlayGame.previewImg){
+        pwErr.textContent = "対象ゲームが見つかりません（またはプレビュー画像がありません）。";
+        pwErr.classList.add("show");
+        return;
+      }
+      const hhmm = getHHMMNow();
+      const obj = {
+        gid: pendingNowPlayGame.gid || "",
+        url: pendingNowPlayGame.url,
+        previewImg: pendingNowPlayGame.previewImg,
+        name: pendingNowPlayGame.name || "",
+        hhmm,
+        setAt: Date.now()
+      };
+      saveNowPlay(obj);
+      showPwModal(false);
+      renderGrid();
+      toast(`NOW PLAY をセットしました ✅`, 900);
+
+      // ✅ 追加要件：設定者はOK後に自動でリンクへ移動（room付与）
+      const openUrl = appendRoomParam(obj.url, obj.hhmm);
+      window.open(openUrl, "_blank", "noopener,noreferrer");
+    }
+
     // =========================
     // ✅ secondframe プレビュー表示/非表示
     // =========================
@@ -1246,6 +1440,24 @@
     // =========================
     // ✅ Slot HTML
     // =========================
+    // ✅ NOW PLAYは「画像だけ」に変更
+    function specialSlotHTML(index){
+      const has = !!(nowPlay && nowPlay.url && nowPlay.previewImg && nowPlay.hhmm);
+      return `
+        <article class="slot special" aria-label="slot-${index+1}"
+          data-special="1"
+          data-gameid=""
+          data-my="0"
+          data-hasprev="0"
+          draggable="false">
+          <div class="nowPlayArea" aria-label="now-play-area">
+            ${has ? `<img src="${escapeHtml(nowPlay.previewImg)}" alt="">` : ``}
+            ${has ? `<div class="nowPlayClickLayer" data-action="nowPlayOpen" title="クリックで開始"></div>` : ``}
+          </div>
+        </article>
+      `;
+    }
+
     function slotHTML(g = {}, index, isMyGame){
       const {name, desc, url, img, previewImg, players, timeMin, tags, id} = g || {};
       const hasGame = !!url;
@@ -1305,7 +1517,11 @@
 
       return `
         <article class="slot" aria-label="slot-${index+1}"
+          data-special="0"
           data-gameid="${escapeHtml(id || "")}"
+          data-name="${escapeHtml(name || "")}"
+          data-url="${escapeHtml(url || "")}"
+          data-preview="${escapeHtml(previewImg || "")}"
           data-my="${isMyGame ? "1":"0"}"
           data-hasprev="${hasPrev ? "1":"0"}"
           draggable="${(currentUser && isMyGame && id) ? "true" : "false"}">
@@ -1372,15 +1588,6 @@
       editingOriginal = null;
       setEditMode(false);
       setAdminStatus("", null);
-    }
-
-    function toast(text, ms=900){
-      dropHint.textContent = text;
-      dropHint.classList.add("show");
-      clearTimeout(toast._t);
-      toast._t = setTimeout(() => {
-        if(!draggingSlot) dropHint.classList.remove("show");
-      }, ms);
     }
 
     // =========================
@@ -1476,12 +1683,21 @@
             createdAt: Number(v.createdAt ?? 0) || 0,
             createdBy: v.createdBy || "",
             createdByEmail: v.createdByEmail || "",
-            // ✅ これが「端末差ゼロの並び順」本体（ログアウトでも読める）
             orderIndex: Number(v.orderIndex ?? 0) || 0
           });
         });
 
         dbGames = arr;
+
+        // ✅ nowPlay が消された/変更された場合に備え、存在するgidなら名前を補完（任意）
+        if(nowPlay && nowPlay.gid){
+          const hit = dbGames.find(g => g.id === nowPlay.gid);
+          if(hit && hit.name && nowPlay.name !== hit.name){
+            nowPlay.name = hit.name;
+            saveNowPlay(nowPlay);
+          }
+        }
+
         renderGrid();
         renderTagsUI();
       }, (err) => {
@@ -1642,7 +1858,6 @@
     }
 
     function getNextOrderIndexForUid(uid){
-      // ✅ DB内の「同じcreatedByの最大orderIndex+1」を採用（端末差なし）
       const mine = dbGames.filter(g => g && g.createdBy === uid);
       const vals = mine.map(g => Number(g.orderIndex||0)).filter(n => Number.isFinite(n) && n > 0);
       const max = vals.length ? Math.max(...vals) : 0;
@@ -1707,7 +1922,6 @@
           players: { min: formMinPlayers, max: formMaxPlayers },
           timeMin: formTimeMin,
           tags,
-          // ✅ 端末差ゼロの並び順をゲーム自体に持たせる
           orderIndex: nextOrder,
           createdAt: firebase.database.ServerValue.TIMESTAMP,
           createdBy: currentUser.uid,
@@ -1780,7 +1994,6 @@
           players: { min: formMinPlayers, max: formMaxPlayers },
           timeMin: formTimeMin,
           tags,
-          // ✅ orderIndexは編集では触らない（並び順はドラッグ保存でのみ変更）
           updatedAt: firebase.database.ServerValue.TIMESTAMP,
           updatedBy: currentUser.uid,
           updatedByEmail: currentUser.email || ""
@@ -1842,8 +2055,6 @@
 
     // =========================
     // ✅ 【重要】端末差ゼロの「安定ソート」
-    // - キャッシュ/ログイン状態に依存しない
-    // - “メイン所有者(primary owner)”をDBから決定して、常に同じ順で先頭に出す
     // =========================
     function stableStr(s){ return String(s||""); }
     function stableIdTie(a,b){
@@ -1855,7 +2066,6 @@
     }
 
     function getPrimaryOwnerUid(){
-      // ✅ createdByごとの件数で決定（最大件数 / 同率なら文字列で決定）→ 端末差ゼロ
       const cnt = new Map();
       for(const g of dbGames){
         const u = stableStr(g?.createdBy);
@@ -1869,7 +2079,6 @@
           bestN = n;
           bestUid = u;
         }else if(n === bestN && n > 0){
-          // tie-breaker（決定的）
           if(bestUid === "" || u < bestUid) bestUid = u;
         }
       }
@@ -1877,7 +2086,6 @@
     }
 
     function sortByOrderIndexAscThenFallback(a,b){
-      // ✅ orderIndex（>0）を最優先。未設定は後ろへ。fallbackは createdAt(desc) + id
       const ao = Number(a?.orderIndex||0);
       const bo = Number(b?.orderIndex||0);
       const aHas = Number.isFinite(ao) && ao > 0;
@@ -1885,7 +2093,6 @@
 
       if(aHas && bHas){
         if(ao !== bo) return ao - bo;
-        // 同じなら安定
         const at = Number(a?.createdAt||0);
         const bt = Number(b?.createdAt||0);
         if(at !== bt) return bt - at;
@@ -1894,7 +2101,6 @@
       if(aHas && !bHas) return -1;
       if(!aHas && bHas) return 1;
 
-      // どっちもorderIndex無し
       const at = Number(a?.createdAt||0);
       const bt = Number(b?.createdAt||0);
       if(at !== bt) return bt - at;
@@ -1913,11 +2119,9 @@
 
       const all = [...dbGames];
 
-      // メイン所有者のゲームを先頭へ（orderIndexで並べる）
       const primary = primaryUid ? all.filter(g => g.createdBy === primaryUid) : [];
       primary.sort(sortByOrderIndexAscThenFallback);
 
-      // その他（createdAt desc）
       const rest = primaryUid ? all.filter(g => g.createdBy !== primaryUid) : all;
       rest.sort(sortByCreatedAtDescThenId);
 
@@ -1926,9 +2130,15 @@
 
     function renderGrid(){
       const merged = makeDisplayGames();
-      const slots = Array.from({length: TOTAL_SLOTS}, (_, i) => merged[i] ?? {});
+
+      // ✅ slot0 is SPECIAL, then normal games start at slot1
+      const slots = Array.from({length: TOTAL_SLOTS}, (_, i) => {
+        if(i === 0) return { __special:true };
+        return merged[i - 1] ?? {};
+      });
 
       grid.innerHTML = slots.map((g, i) => {
+        if(i === 0) return specialSlotHTML(i);
         const isMyGame = !!currentUser && !!g?.id && g.createdBy === currentUser.uid;
         return slotHTML(g, i, isMyGame);
       }).join("");
@@ -1946,9 +2156,9 @@
 
     // =========================
     // ✅ 並べ替え保存（games/{gid}/orderIndex を更新）
-    // - userGameOrder は使わない（キャッシュ依存を完全排除）
     // =========================
     function getMySlotsInDom(){
+      // ✅ special tile is not my tile; this selector excludes it because data-my isn't '1'
       return [...grid.querySelectorAll(".slot[data-my='1']")];
     }
 
@@ -1956,7 +2166,6 @@
       if(!currentUser || !db) return;
 
       const primaryUid = getPrimaryOwnerUid();
-      // ✅ “メイン所有者”の並び順だけ固定したい想定（ログアウトでも同じ先頭順にするため）
       if(primaryUid && currentUser.uid !== primaryUid){
         toast("この端末のログインユーザーはメイン所有者ではありません", 1400);
         return;
@@ -1972,8 +2181,6 @@
         updates[`games/${id}/orderIndex`] = idx + 1;
       });
 
-      // ✅ 自分のゲームにだけ適用（安全）
-      // 余計なゲームに触らない（DOMに出てる自分のカードだけ）
       toast("順番を保存中...");
       db.ref().update(updates).then(() => {
         toast("順番を保存しました ✅");
@@ -2008,7 +2215,7 @@
           }
         }
       }
-      return best; // nullなら末尾へ
+      return best;
     }
 
     // =========================
@@ -2214,6 +2421,24 @@
     });
 
     // =========================
+    // ✅ Special tile click: open NOW PLAY with ?room=HHMM
+    // =========================
+    grid.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-action='nowPlayOpen']");
+      if(!btn) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      if(!nowPlay || !nowPlay.url || !nowPlay.hhmm){
+        toast("NOW PLAY が未設定です", 1100);
+        return;
+      }
+      const openUrl = appendRoomParam(nowPlay.url, nowPlay.hhmm);
+      window.open(openUrl, "_blank", "noopener,noreferrer");
+    });
+
+    // =========================
     // ✅ secondframe：スクロール判定つきで「表示」だけ
     // =========================
     grid.addEventListener("pointerdown", (e) => {
@@ -2221,6 +2446,7 @@
       if(!sf) return;
       const slot = e.target.closest(".slot");
       if(!slot) return;
+      if(slot.getAttribute("data-special") === "1") return;
 
       if(slot.getAttribute("data-hasprev") !== "1") return;
 
@@ -2238,7 +2464,7 @@
       const dy = e.clientY - SF_CLICK.startY;
       const dist = Math.hypot(dx, dy);
       SF_CLICK.movedDist = dist;
-      if(dist > SF_MOVE_PX){
+      if(dist > 10){
         SF_CLICK.moved = true;
       }
     }, { passive:true });
@@ -2249,12 +2475,13 @@
 
       const dt = Date.now() - SF_CLICK.downTime;
       if(SF_CLICK.moved) return;
-      if(dt > SF_TIME_MS) return;
+      if(dt > 450) return;
 
       const sf = e.target.closest(".secondframe[data-action='sf']");
       if(!sf) return;
       const slot = e.target.closest(".slot");
       if(!slot) return;
+      if(slot.getAttribute("data-special") === "1") return;
 
       openSfOverlayForSlot(slot);
       suppressNextClick(450);
@@ -2314,6 +2541,92 @@
     window.addEventListener("wheel", closeOnScroll, { passive:true });
     window.addEventListener("touchmove", closeOnScroll, { passive:true });
     window.addEventListener("scroll", closeOnScroll, { passive:true });
+
+    // =========================
+    // ✅ Long-press on a GAME tile: ask password → set NOW PLAY
+    // =========================
+    function lpCancel(){
+      LP.active = false;
+      LP.moved = false;
+      LP.slot = null;
+      clearTimeout(LP.timer);
+      LP.timer = 0;
+    }
+
+    function canLongPressSlot(slot){
+      if(!slot) return false;
+      if(slot.getAttribute("data-special") === "1") return false;
+      if(draggingSlot) return false;
+      if(slot.querySelector(".sfOverlay.show")) return false;
+      const gid = slot.getAttribute("data-gameid") || "";
+      if(!gid) return false;
+      const url = slot.getAttribute("data-url") || "";
+      const prev = slot.getAttribute("data-preview") || "";
+      if(!url || !prev) return false;
+      return true;
+    }
+
+    grid.addEventListener("pointerdown", (e) => {
+      // ignore if on overlay / close button / edit
+      if(e.target.closest(".sfOverlay")) return;
+      if(e.target.closest("[data-action='sfClose']")) return;
+      if(e.target.closest("[data-action='editGame']")) return;
+
+      const slot = e.target.closest(".slot");
+      if(!slot) return;
+
+      if(!canLongPressSlot(slot)) return;
+
+      LP.active = true;
+      LP.moved = false;
+      LP.slot = slot;
+      LP.startX = e.clientX;
+      LP.startY = e.clientY;
+
+      clearTimeout(LP.timer);
+      LP.timer = setTimeout(() => {
+        if(!LP.active || LP.moved || !LP.slot) return;
+
+        const gid = LP.slot.getAttribute("data-gameid") || "";
+        const url = LP.slot.getAttribute("data-url") || "";
+        const previewImg = LP.slot.getAttribute("data-preview") || "";
+        const name = LP.slot.getAttribute("data-name") || "";
+
+        openPwForGame({ gid, url, previewImg, name });
+
+        suppressNextClick(650);
+        lpCancel();
+      }, 650);
+    }, { passive:true });
+
+    grid.addEventListener("pointermove", (e) => {
+      if(!LP.active) return;
+      const dx = e.clientX - LP.startX;
+      const dy = e.clientY - LP.startY;
+      if(Math.hypot(dx, dy) > 12){
+        LP.moved = true;
+        clearTimeout(LP.timer);
+      }
+    }, { passive:true });
+
+    grid.addEventListener("pointerup", () => {
+      if(!LP.active) return;
+      lpCancel();
+    }, { passive:true });
+
+    grid.addEventListener("pointercancel", () => {
+      if(!LP.active) return;
+      lpCancel();
+    }, { passive:true });
+
+    // =========================
+    // ✅ Password modal events
+    // =========================
+    btnPwClose.addEventListener("click", () => showPwModal(false));
+    btnPwCancel.addEventListener("click", () => showPwModal(false));
+    pwModalOverlay.addEventListener("click", (e) => { if(e.target === pwModalOverlay) showPwModal(false); });
+    btnPwOk.addEventListener("click", confirmPw);
+    pwInput.addEventListener("keydown", (e) => { if(e.key === "Enter") confirmPw(); });
 
     // =========================
     // ✅ Drag & Drop（自分のカードのみ）
@@ -2398,6 +2711,8 @@
         if(cached) authEmail.value = cached;
       }catch(_){}
 
+      nowPlay = loadNowPlay();
+
       resetFormState();
       setEditMode(false);
 
@@ -2412,7 +2727,6 @@
 
     /*
       ✅ Realtime Database ルール例（orderIndex を games 内に保存する版）
-      - userGameOrder は不要（完全廃止）
       - games は read:true のまま、ownerだけ write できる
       - tags は read:true、write はログイン必須
 
