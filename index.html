@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
@@ -685,10 +685,8 @@
 
     /* =========================
        ✅ Special FIRST tile (NOW PLAY)
-       - 文字：黒字/大きく/背景なし（※背景グラデは削除）
        ========================= */
     .slot.special{
-      /* 背景不要：slot自体も素のままに近づける */
       background: transparent;
       border-color: rgba(0,0,0,.12);
       padding:12px;
@@ -701,7 +699,7 @@
       overflow:hidden;
       position:relative;
       border:1px solid rgba(0,0,0,.10);
-      background: transparent; /* ✅ 背景不要 */
+      background: transparent;
       min-height:140px;
       display:flex;
       align-items:center;
@@ -716,22 +714,20 @@
       -webkit-user-drag:none;
     }
 
-    /* ✅ 追加：画像の上に「NOW PLAY!」を表示（黒字・大きく・背景なし） */
     .nowPlayText{
       position:absolute;
       inset:0;
-      z-index:4;              /* 画像の上、クリックレイヤーの下 */
+      z-index:4;
       display:flex;
       align-items:center;
       justify-content:center;
       font-weight: 1000;
       letter-spacing: .10em;
-      color:#000;             /* ✅ 黒字 */
-      font-size: clamp(28px, 4.2vw, 62px); /* ✅ 大きく（レスポンシブ） */
+      color:#000;
+      font-size: clamp(28px, 4.2vw, 62px);
       line-height:1;
-      pointer-events:none;    /* ✅ クリックを邪魔しない */
+      pointer-events:none;
       user-select:none;
-      /* 背景不要のまま、読みやすさだけ少し補助（背景ではなく影） */
       text-shadow: 0 2px 10px rgba(255,255,255,.55);
     }
 
@@ -889,8 +885,7 @@
 
     <div class="dropHint" id="dropHint">ドラッグで並べ替え中…</div>
 
-    <div class="footnote">
-    </div>
+    <div class="footnote"></div>
   </main>
 
   <!-- ===== Modal: Auth ===== -->
@@ -948,7 +943,6 @@
 
         <div class="field">
           <div class="label">パスワード</div>
-          <!-- ✅ placeholderから数字を消す（パスワードが枠内に出ない） -->
           <input class="input" id="pwInput" type="password" inputmode="numeric" placeholder="パスワードを入力" />
         </div>
 
@@ -957,6 +951,11 @@
         <div class="rowActions" style="justify-content:flex-end;">
           <button class="btn" id="btnPwCancel">キャンセル</button>
           <button class="btn primary" id="btnPwOk">OK</button>
+        </div>
+
+        <div class="hint" style="margin-top:4px;">
+          ※ スマホで「更新されない」問題対策：NOW PLAY を <b>DBに保存して全端末へ同期</b>します。<br/>
+          （そのため NOW PLAY 設定は <b>ログイン中のみ</b>可能にしています）
         </div>
       </div>
     </div>
@@ -1073,6 +1072,10 @@
     let dbTagsMap = {};
     let deletingTagBusy = false;
 
+    // ✅ NOW PLAY をDBで同期（スマホで更新されない問題対策）
+    let nowPlayRef = null;     // db.ref("nowPlay/current")
+    let nowPlayUnsub = false;
+
     // ✅ form state
     let formMinPlayers = 3;
     let formMaxPlayers = 6;
@@ -1104,7 +1107,7 @@
     }
 
     // ✅ NOW PLAY state
-    let nowPlay = null; // {gid,url,previewImg,hhmm,setAt,name}
+    let nowPlay = null; // {gid,url,previewImg,hhmm,setAt,name, updatedAt?}
     let pendingNowPlayGame = null; // {gid,url,previewImg,name}
 
     // ✅ long-press detector for setting NOW PLAY
@@ -1346,10 +1349,13 @@
       try{
         const u = new URL(raw);
         u.searchParams.set("room", hhmm);
+        // ✅ iOS Safari対策：同じURLを連続で開いてもキャッシュにならないように軽いbustを付ける
+        u.searchParams.set("_t", String(Date.now()));
         return u.toString();
       }catch(_){
         const hasQ = raw.includes("?");
-        return raw + (hasQ ? "&" : "?") + "room=" + encodeURIComponent(hhmm);
+        const sep = hasQ ? "&" : "?";
+        return raw + sep + "room=" + encodeURIComponent(hhmm) + "&_t=" + Date.now();
       }
     }
 
@@ -1365,12 +1371,68 @@
       }
     }
 
-    function saveNowPlay(obj){
+    function saveNowPlayLocal(obj){
       nowPlay = obj || null;
       try{
         if(nowPlay) localStorage.setItem(LS_NOW_PLAY, JSON.stringify(nowPlay));
         else localStorage.removeItem(LS_NOW_PLAY);
       }catch(_){}
+    }
+
+    // ✅ DBに保存（全端末同期）
+    async function saveNowPlayToDB(obj){
+      if(!firebaseReady || !db) throw new Error("Firebaseが初期化できていません。");
+      if(!currentUser) throw new Error("NOW PLAY の設定はログインが必要です。");
+
+      const payload = {
+        gid: obj?.gid || "",
+        url: obj?.url || "",
+        previewImg: obj?.previewImg || "",
+        name: obj?.name || "",
+        hhmm: obj?.hhmm || "",
+        setAt: Number(obj?.setAt || 0) || 0,
+        updatedAt: firebase.database.ServerValue.TIMESTAMP,
+        updatedBy: currentUser.uid,
+        updatedByEmail: currentUser.email || ""
+      };
+      await db.ref("nowPlay").child("current").set(payload);
+    }
+
+    // ✅ DBのNOW PLAYを監視（スマホで更新されない＝端末間で同期しない問題を解決）
+    function startNowPlayListener(){
+      if(!firebaseReady || !db) return;
+      if(nowPlayRef) return;
+
+      nowPlayRef = db.ref("nowPlay/current");
+      nowPlayRef.on("value", (snap) => {
+        const v = snap.val();
+        if(!v || !v.url || !v.previewImg || !v.hhmm){
+          // DB側が未設定なら、ローカルを維持（ただしローカルも無ければ空）
+          const local = loadNowPlay();
+          saveNowPlayLocal(local);
+          renderGrid();
+          return;
+        }
+
+        const obj = {
+          gid: v.gid || "",
+          url: v.url || "",
+          previewImg: v.previewImg || "",
+          name: v.name || "",
+          hhmm: String(v.hhmm || ""),
+          setAt: Number(v.setAt || 0) || 0,
+          updatedAt: Number(v.updatedAt || 0) || 0
+        };
+
+        // ✅ 端末ローカルも更新（オフライン時の保険）
+        saveNowPlayLocal(obj);
+        renderGrid();
+      }, (_err) => {
+        // 失敗時はローカルだけで継続
+        const local = loadNowPlay();
+        saveNowPlayLocal(local);
+        renderGrid();
+      });
     }
 
     function showPwModal(open){
@@ -1392,9 +1454,8 @@
       showPwModal(true);
     }
 
-    function confirmPw(){
+    async function confirmPw(){
       const val = (pwInput.value || "").trim();
-      // ✅ パスワード文字列はUIに出さない（ここは比較だけ）
       if(val !== "2225"){
         pwErr.textContent = "パスワードが違います。";
         pwErr.classList.add("show");
@@ -1405,6 +1466,14 @@
         pwErr.classList.add("show");
         return;
       }
+
+      // ✅ 重要：全端末同期のため、設定はログイン必須にする
+      if(!currentUser){
+        pwErr.textContent = "NOW PLAY を全端末に反映するため、先にログインしてください。";
+        pwErr.classList.add("show");
+        return;
+      }
+
       const hhmm = getHHMMNow();
       const obj = {
         gid: pendingNowPlayGame.gid || "",
@@ -1414,14 +1483,25 @@
         hhmm,
         setAt: Date.now()
       };
-      saveNowPlay(obj);
-      showPwModal(false);
-      renderGrid();
-      toast(`NOW PLAY をセットしました ✅`, 900);
 
-      // ✅ 追加要件：設定者はOK後に自動でリンクへ移動（room付与）
-      const openUrl = appendRoomParam(obj.url, obj.hhmm);
-      window.open(openUrl, "_blank", "noopener,noreferrer");
+      try{
+        // ✅ ローカル即反映
+        saveNowPlayLocal(obj);
+        renderGrid();
+
+        // ✅ DBへ保存（スマホ含め全端末更新）
+        await saveNowPlayToDB(obj);
+
+        showPwModal(false);
+        toast(`NOW PLAY をセットしました ✅`, 900);
+
+        // ✅ 設定者はOK後に自動でリンクへ移動（room付与 + iOS対策 _t）
+        const openUrl = appendRoomParam(obj.url, obj.hhmm);
+        window.open(openUrl, "_blank", "noopener,noreferrer");
+      }catch(err){
+        pwErr.textContent = "保存に失敗しました: " + (err?.message || err);
+        pwErr.classList.add("show");
+      }
     }
 
     // =========================
@@ -1451,7 +1531,6 @@
     // =========================
     // ✅ Slot HTML
     // =========================
-    // ✅ NOW PLAYは「画像 + 文字（黒字/大）」＋クリックレイヤー
     function specialSlotHTML(index){
       const has = !!(nowPlay && nowPlay.url && nowPlay.previewImg && nowPlay.hhmm);
       return `
@@ -1653,12 +1732,18 @@
           startDbListener();
           startTagsListener();
 
+          // ✅ NOW PLAY をDBから監視開始（ログイン状態に依存しない読み取り）
+          startNowPlayListener();
+
           renderGrid();
           renderTagsUI();
         });
 
         renderGrid();
         updateAuthUI();
+
+        // ✅ 初期でも NOW PLAY 監視（onAuthStateChanged前でもOK）
+        startNowPlayListener();
       }catch(err){
         firebaseReady = false;
         renderGrid();
@@ -1701,12 +1786,12 @@
 
         dbGames = arr;
 
-        // ✅ nowPlay が消された/変更された場合に備え、存在するgidなら名前を補完（任意）
+        // ✅ DBのnowPlayがgidを持っていて、ゲーム名が変わっていたらローカル表示だけ追従（任意）
         if(nowPlay && nowPlay.gid){
           const hit = dbGames.find(g => g.id === nowPlay.gid);
           if(hit && hit.name && nowPlay.name !== hit.name){
             nowPlay.name = hit.name;
-            saveNowPlay(nowPlay);
+            saveNowPlayLocal(nowPlay);
           }
         }
 
@@ -1752,7 +1837,7 @@
         dbTagsMap = map;
 
         renderTagsUI();
-      }, (err) => {
+      }, (_err) => {
         dbTags = [];
         dbTagsMap = {};
         renderTagsUI();
@@ -2143,7 +2228,6 @@
     function renderGrid(){
       const merged = makeDisplayGames();
 
-      // ✅ slot0 is SPECIAL, then normal games start at slot1
       const slots = Array.from({length: TOTAL_SLOTS}, (_, i) => {
         if(i === 0) return { __special:true };
         return merged[i - 1] ?? {};
@@ -2170,7 +2254,6 @@
     // ✅ 並べ替え保存（games/{gid}/orderIndex を更新）
     // =========================
     function getMySlotsInDom(){
-      // ✅ special tile is not my tile; this selector excludes it because data-my isn't '1'
       return [...grid.querySelectorAll(".slot[data-my='1']")];
     }
 
@@ -2202,7 +2285,7 @@
     }
 
     // =========================
-    // ✅ Grid drag & drop（グリッド対応の挿入判定で端末差を防ぐ）
+    // ✅ Grid drag & drop（グリッド対応の挿入判定）
     // =========================
     function getGridAfterElement(mySlots, x, y){
       const candidates = mySlots.filter(el => el !== draggingSlot);
@@ -2433,7 +2516,7 @@
     });
 
     // =========================
-    // ✅ Special tile click: open NOW PLAY with ?room=HHMM
+    // ✅ Special tile click: open NOW PLAY with ?room=HHMM (+ _t)
     // =========================
     grid.addEventListener("click", (e) => {
       const btn = e.target.closest("[data-action='nowPlayOpen']");
@@ -2579,7 +2662,6 @@
     }
 
     grid.addEventListener("pointerdown", (e) => {
-      // ignore if on overlay / close button / edit
       if(e.target.closest(".sfOverlay")) return;
       if(e.target.closest("[data-action='sfClose']")) return;
       if(e.target.closest("[data-action='editGame']")) return;
@@ -2637,7 +2719,7 @@
     btnPwClose.addEventListener("click", () => showPwModal(false));
     btnPwCancel.addEventListener("click", () => showPwModal(false));
     pwModalOverlay.addEventListener("click", (e) => { if(e.target === pwModalOverlay) showPwModal(false); });
-    btnPwOk.addEventListener("click", confirmPw);
+    btnPwOk.addEventListener("click", () => { confirmPw(); });
     pwInput.addEventListener("keydown", (e) => { if(e.key === "Enter") confirmPw(); });
 
     // =========================
@@ -2715,6 +2797,27 @@
     });
 
     // =========================
+    // ✅ iOS/スマホ対策：復帰時に必ず再読込＆再描画
+    // - SafariのBFCacheで「JSが止まったまま」になるのを防ぐ
+    // =========================
+    window.addEventListener("pageshow", (e) => {
+      // BFCache復帰でも、NOW PLAY（local）を再読込して再描画
+      const local = loadNowPlay();
+      saveNowPlayLocal(local);
+      renderGrid();
+      requestSyncLayout();
+    });
+
+    document.addEventListener("visibilitychange", () => {
+      if(document.visibilityState === "visible"){
+        const local = loadNowPlay();
+        saveNowPlayLocal(local);
+        renderGrid();
+        requestSyncLayout();
+      }
+    });
+
+    // =========================
     // ✅ Start
     // =========================
     window.addEventListener("load", () => {
@@ -2723,6 +2826,7 @@
         if(cached) authEmail.value = cached;
       }catch(_){}
 
+      // ✅ 最初はローカル表示（オフラインでも見える）
       nowPlay = loadNowPlay();
 
       resetFormState();
@@ -2738,9 +2842,7 @@
     });
 
     /*
-      ✅ Realtime Database ルール例（orderIndex を games 内に保存する版）
-      - games は read:true のまま、ownerだけ write できる
-      - tags は read:true、write はログイン必須
+      ✅ Realtime Database ルール例（NOW PLAY をDB同期する版）
 
       {
         "rules": {
@@ -2755,6 +2857,12 @@
             "$tagKey": {
               ".write": "auth != null"
             }
+          },
+          "nowPlay": {
+            ".read": true,
+            "current": {
+              ".write": "auth != null"
+            }
           }
         }
       }
@@ -2762,5 +2870,3 @@
   </script>
 </body>
 </html>
-
-
