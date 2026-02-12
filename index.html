@@ -979,7 +979,9 @@
     // ✅ localStorage keys
     // =========================
     const LS_AUTH_EMAIL = "kame_bodoge_auth_email";
-    const LS_NOW_PLAY   = "kame_bodoge_now_play_v2"; // {gid,url,previewImg,name,setAt} ※roomは「開く瞬間」に生成
+    // ✅ v3: room を保存（固定）
+    // {gid,url,previewImg,name,setAt,room}
+    const LS_NOW_PLAY   = "kame_bodoge_now_play_v3";
 
     // =========================
     // ✅ DOM
@@ -1066,11 +1068,12 @@
     let deletingTagBusy = false;
 
     // ✅ NOW PLAY（DB同期する）
-    let nowPlay = null;                 // {gid,url,previewImg,name,setAt,updatedAt?}
-    let pendingNowPlayGame = null;      // {gid,url,previewImg,name}
+    // nowPlay: {gid,url,previewImg,name,setAt,room}
+    let nowPlay = null;
+    let pendingNowPlayGame = null;
     let nowPlayRef = null;
-    let nowPlayUnsub = false;           // 念のため
-    let nowPlayLocalDirtyUntil = 0;     // 自分が設定直後の「即上書き」防止(超短時間)
+    let nowPlayUnsub = false;
+    let nowPlayLocalDirtyUntil = 0;
 
     // ✅ form state
     let formMinPlayers = 3;
@@ -1323,39 +1326,51 @@
 
     // =========================
     // ✅ NOW PLAY helpers（★ここが修正の中心）
-    // - NOW PLAY は DB(nowPlay/current) を購読して全端末で同期
-    // - room は「開く瞬間」に毎回生成（スマホで更新されない問題の対策）
-    // - window.open が失敗する端末は location.href にフォールバック
+    // - 「開く瞬間の時刻」ではなく「設定した瞬間のroom」を固定で使う
     // =========================
-    function getHHMMNow(){
-      const d = new Date();
+    function hhmmFromTs(ts){
+      const d = new Date(Number(ts || Date.now()));
       const hh = String(d.getHours()).padStart(2,"0");
       const mm = String(d.getMinutes()).padStart(2,"0");
       return hh + mm;
     }
 
-    function buildNowPlayOpenUrl(baseUrl){
+    function ensureNowPlayRoom(obj){
+      if(!obj) return null;
+      const out = {...obj};
+      // 旧データ互換（roomが無ければ setAt から作る）
+      if(!out.room){
+        const base = Number(out.setAt || 0) || Date.now();
+        out.room = hhmmFromTs(base);
+      }
+      return out;
+    }
+
+    function buildNowPlayOpenUrl(baseUrl, roomFixed){
       const raw = String(baseUrl || "").trim();
       if(!raw) return raw;
-      const hhmm = getHHMMNow(); // ✅ 毎回更新
-      const cacheBuster = Date.now().toString(36); // ✅ iOSで「同URL扱い」になるのを避ける
+
+      // ✅ 固定room（NOW PLAY設定時のroom）
+      const room = String(roomFixed || "").trim() || hhmmFromTs(Date.now());
+
+      // ✅ iOSで「同URL扱い」になるのを避ける
+      const cacheBuster = Date.now().toString(36);
+
       try{
         const u = new URL(raw);
-        u.searchParams.set("room", hhmm);
+        u.searchParams.set("room", room);
         u.searchParams.set("v", cacheBuster);
         return u.toString();
       }catch(_){
         const hasQ = raw.includes("?");
-        return raw + (hasQ ? "&" : "?") + "room=" + encodeURIComponent(hhmm) + "&v=" + encodeURIComponent(cacheBuster);
+        return raw + (hasQ ? "&" : "?") + "room=" + encodeURIComponent(room) + "&v=" + encodeURIComponent(cacheBuster);
       }
     }
 
     function safeOpenUrl(url){
       if(!url) return false;
-      // iOS/Safariで window.open がブロックされる/返り値nullのことがある
       const w = window.open(url, "_blank", "noopener,noreferrer");
       if(!w){
-        // ✅ フォールバック：同タブ遷移（確実に開く）
         location.href = url;
         return true;
       }
@@ -1369,14 +1384,14 @@
         if(!s) return null;
         const obj = JSON.parse(s);
         if(!obj || !obj.url || !obj.previewImg) return null;
-        return obj;
+        return ensureNowPlayRoom(obj);
       }catch(_){
         return null;
       }
     }
 
     function saveNowPlayLocal(obj){
-      nowPlay = obj || null;
+      nowPlay = obj ? ensureNowPlayRoom(obj) : null;
       try{
         if(nowPlay) localStorage.setItem(LS_NOW_PLAY, JSON.stringify(nowPlay));
         else localStorage.removeItem(LS_NOW_PLAY);
@@ -1385,16 +1400,18 @@
 
     async function saveNowPlayToDB(obj){
       if(!firebaseReady || !db) throw new Error("Firebaseが初期化できていません。");
-      // ✅ ログイン(メール)不要：匿名でもOKにする想定（ルールは下に例）
+      const fixed = ensureNowPlayRoom(obj);
+
       const payload = {
-        gid: obj.gid || "",
-        url: obj.url || "",
-        previewImg: obj.previewImg || "",
-        name: obj.name || "",
-        setAt: Number(obj.setAt || Date.now()),
+        gid: fixed.gid || "",
+        url: fixed.url || "",
+        previewImg: fixed.previewImg || "",
+        name: fixed.name || "",
+        setAt: Number(fixed.setAt || Date.now()),
+        room: String(fixed.room || ""),  // ✅ 追加：固定room
         updatedAt: firebase.database.ServerValue.TIMESTAMP
       };
-      nowPlayLocalDirtyUntil = Date.now() + 1200; // 直後の反映競合を少し避ける
+      nowPlayLocalDirtyUntil = Date.now() + 1200;
       await db.ref("nowPlay/current").set(payload);
     }
 
@@ -1407,22 +1424,26 @@
       nowPlayRef.on("value", (snap) => {
         const v = snap.val() || null;
 
-        // ✅ 自分が設定直後に「古い値」で戻るのを抑制（超短時間だけ）
         if(Date.now() < nowPlayLocalDirtyUntil){
-          // でもDBが確実に新しい値になってたら取り込む
           if(v && v.url && v.previewImg){
-            // localと同一か軽く判定
-            const same = nowPlay && nowPlay.url === v.url && nowPlay.previewImg === v.previewImg && (nowPlay.name||"") === (v.name||"");
+            const incoming = ensureNowPlayRoom({
+              gid: v.gid || "",
+              url: v.url || "",
+              previewImg: v.previewImg || "",
+              name: v.name || "",
+              setAt: Number(v.setAt || 0) || Date.now(),
+              room: v.room || ""
+            });
+
+            const same =
+              nowPlay &&
+              nowPlay.url === incoming.url &&
+              nowPlay.previewImg === incoming.previewImg &&
+              (nowPlay.name||"") === (incoming.name||"") &&
+              (nowPlay.room||"") === (incoming.room||"");
+
             if(!same){
-              // 新しいなら反映
-              const obj = {
-                gid: v.gid || "",
-                url: v.url || "",
-                previewImg: v.previewImg || "",
-                name: v.name || "",
-                setAt: Number(v.setAt || 0) || Date.now()
-              };
-              saveNowPlayLocal(obj);
+              saveNowPlayLocal(incoming);
               renderGrid();
             }
           }
@@ -1430,16 +1451,16 @@
         }
 
         if(v && v.url && v.previewImg){
-          const obj = {
+          const obj = ensureNowPlayRoom({
             gid: v.gid || "",
             url: v.url || "",
             previewImg: v.previewImg || "",
             name: v.name || "",
-            setAt: Number(v.setAt || 0) || Date.now()
-          };
+            setAt: Number(v.setAt || 0) || Date.now(),
+            room: v.room || ""
+          });
           saveNowPlayLocal(obj);
         }else{
-          // DBに未設定なら local のキャッシュを表示（オフライン用）
           const fallback = loadNowPlayLocal();
           if(fallback) saveNowPlayLocal(fallback);
           else saveNowPlayLocal(null);
@@ -1447,7 +1468,6 @@
 
         renderGrid();
       }, (err) => {
-        // DB読めない場合は local のみで動かす
         const fallback = loadNowPlayLocal();
         if(fallback) saveNowPlayLocal(fallback);
         renderGrid();
@@ -1489,31 +1509,32 @@
         return;
       }
 
-      const obj = {
+      const now = Date.now();
+      const obj = ensureNowPlayRoom({
         gid: pendingNowPlayGame.gid || "",
         url: pendingNowPlayGame.url,
         previewImg: pendingNowPlayGame.previewImg,
         name: pendingNowPlayGame.name || "",
-        setAt: Date.now()
-      };
+        setAt: now,
+        room: hhmmFromTs(now) // ✅ 設定した瞬間のHHMMを固定roomとして保存
+      });
 
       // ✅ まずローカル即反映
       saveNowPlayLocal(obj);
       renderGrid();
 
-      // ✅ DBへ保存（ログイン不要運用：匿名でOKにする想定）
+      // ✅ DBへ保存
       try{
         await saveNowPlayToDB(obj);
       }catch(err){
-        // DB失敗でもローカルは動く
         toast("NOW PLAY を保存できませんでした（ローカルのみ）", 1400);
       }
 
       showPwModal(false);
       toast(`NOW PLAY をセットしました ✅`, 900);
 
-      // ✅ 設定者はOK後に自動でリンクへ移動（roomは毎回生成）
-      const openUrl = buildNowPlayOpenUrl(obj.url);
+      // ✅ 設定者はOK後に自動でリンクへ移動（固定roomで開く）
+      const openUrl = buildNowPlayOpenUrl(obj.url, obj.room);
       safeOpenUrl(openUrl);
     }
 
@@ -1594,7 +1615,6 @@
         ? `<p class="desc">${escapeHtml(desc || "")}</p>`
         : `<p class="desc" style="opacity:.45;">Loading...</p>`;
 
-      // ✅ 管理（編集）ボタンは「メールログインのみ」
       const canAdmin = !!currentUser && !currentUser.isAnonymous;
       const editBtn = (hasGame && canAdmin && isMyGame && id)
         ? `<button class="cardEditBtn" data-action="editGame" data-id="${escapeHtml(id)}" title="このゲームを編集">編集</button>`
@@ -1664,7 +1684,6 @@
     }
 
     function updateAuthUI(){
-      // ✅ 管理パネルは「メールログインのみ」
       const signedInAdmin = !!currentUser && !currentUser.isAnonymous;
 
       btnLogin.classList.toggle("hidden", signedInAdmin);
@@ -1740,20 +1759,16 @@
 
         firebaseReady = true;
 
-        // ✅ ログインに依存しないため：未ログインなら匿名ログインを試す
-        // （管理パネルは isAnonymous=false の時だけ表示）
         auth.onAuthStateChanged(async (user) => {
           currentUser = user || null;
           exitEditMode();
           updateAuthUI();
 
-          // ✅ userがnullなら匿名で入る（書き込みルールを auth!=null にできる）
           if(!currentUser){
             try{
               await auth.signInAnonymously();
               return;
             }catch(_){
-              // 匿名が無効でも読み取りは動く（ルール次第）
             }
           }
 
@@ -1765,7 +1780,6 @@
           renderTagsUI();
         });
 
-        // 先にローカル表示（DBは後で上書き）
         nowPlay = loadNowPlayLocal();
         renderGrid();
         updateAuthUI();
@@ -1812,7 +1826,6 @@
 
         dbGames = arr;
 
-        // nowPlayのgidがあるなら名前補完（任意）
         if(nowPlay && nowPlay.gid){
           const hit = dbGames.find(g => g.id === nowPlay.gid);
           if(hit && hit.name && nowPlay.name !== hit.name){
@@ -2378,7 +2391,6 @@
       try{
         if(auth) await auth.signOut();
       }catch(_){ }
-      // 署名アウトすると匿名に戻る（onAuthStateChangedで signInAnonymously する）
     });
 
     tabLogin.addEventListener("click", () => setAuthMode("login"));
@@ -2548,7 +2560,7 @@
     });
 
     // =========================
-    // ✅ Special tile click: open NOW PLAY（roomは毎回更新）
+    // ✅ Special tile click: open NOW PLAY（固定roomで開く）
     // =========================
     grid.addEventListener("click", (e) => {
       const btn = e.target.closest("[data-action='nowPlayOpen']");
@@ -2561,7 +2573,7 @@
         toast("NOW PLAY が未設定です", 1100);
         return;
       }
-      const openUrl = buildNowPlayOpenUrl(nowPlay.url);
+      const openUrl = buildNowPlayOpenUrl(nowPlay.url, nowPlay.room);
       safeOpenUrl(openUrl);
     });
 
@@ -2671,7 +2683,6 @@
 
     // =========================
     // ✅ Long-press on a GAME tile: password → set NOW PLAY
-    // (ログイン不要のままOK)
     // =========================
     function lpCancel(){
       LP.active = false;
@@ -2840,7 +2851,6 @@
         if(cached) authEmail.value = cached;
       }catch(_){}
 
-      // 先にローカルでNOW PLAY表示（DBは後で購読して上書き）
       nowPlay = loadNowPlayLocal();
 
       resetFormState();
